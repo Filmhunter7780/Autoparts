@@ -671,6 +671,9 @@
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
                 
+                // Обновляем токен аутентификации
+                await user.getIdToken(true);
+                
                 // Сохраняем данные пользователя
                 await usersRef.doc(user.uid).set({
                     email,
@@ -680,6 +683,9 @@
                 
                 // Сохраняем данные магазина для продавцов
                 if (selectedRole === 'seller') {
+                    // Добавляем задержку для синхронизации
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
                     await shopsRef.add({
                         userId: user.uid,
                         shopName,
@@ -705,6 +711,8 @@
                     errorMessage = 'Этот email уже зарегистрирован';
                 } else if (error.code === 'auth/weak-password') {
                     errorMessage = 'Пароль слишком слабый (минимум 6 символов)';
+                } else if (error.code === 'permission-denied') {
+                    errorMessage = 'Ошибка прав доступа. Проверьте правила Firestore';
                 }
                 
                 popupMessage.textContent = `Ошибка регистрации: ${errorMessage}`;
@@ -730,6 +738,9 @@
             }
             
             try {
+                // Обновляем токен аутентификации
+                await user.getIdToken(true);
+                
                 // Проверяем существующий профиль
                 const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
                 
@@ -742,6 +753,7 @@
                         shopAddress,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+                    popupMessage.textContent = 'Данные магазина сохранены!';
                 } else {
                     // Обновляем первый найденный профиль
                     const shopDoc = shopQuery.docs[0];
@@ -751,9 +763,9 @@
                         shopAddress,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+                    popupMessage.textContent = 'Данные магазина обновлены!';
                 }
                 
-                popupMessage.textContent = 'Данные магазина сохранены!';
                 popupMessage.className = 'message success';
                 
                 // Закрываем попап через 2 секунды
@@ -762,8 +774,17 @@
                 }, 2000);
                 
             } catch (error) {
-                popupMessage.textContent = `Ошибка: ${error.message}`;
+                let errorMessage = error.message;
+                
+                // Специальная обработка ошибки разрешений
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'Ошибка прав доступа. Проверьте правила Firestore';
+                }
+                
+                popupMessage.textContent = `Ошибка: ${errorMessage}`;
                 popupMessage.className = 'message error';
+                
+                console.error("Ошибка сохранения профиля:", error);
             }
         }
         
@@ -806,6 +827,9 @@
                     return;
                 }
                 
+                // Обновляем токен аутентификации
+                await user.getIdToken(true);
+                
                 const requestData = {
                     carBrand,
                     carModel,
@@ -838,8 +862,17 @@
                 loadPublicRequests();
                 
             } catch (error) {
-                requestMessage.textContent = `Ошибка: ${error.message}`;
+                let errorMessage = error.message;
+                
+                // Специальная обработка ошибки разрешений
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'Ошибка прав доступа. Проверьте правила Firestore';
+                }
+                
+                requestMessage.textContent = `Ошибка: ${errorMessage}`;
                 requestMessage.className = 'message error';
+                
+                console.error("Ошибка создания запроса:", error);
             }
         }
         
@@ -1027,6 +1060,9 @@
             const comment = prompt("Дополнительный комментарий (необязательно):") || '';
             
             try {
+                // Обновляем токен аутентификации
+                await user.getIdToken(true);
+                
                 await offersRef.add({
                     requestId,
                     sellerId: user.uid,
@@ -1042,7 +1078,14 @@
                 loadPublicRequests();
                 
             } catch (error) {
-                alert(`Ошибка: ${error.message}`);
+                let errorMessage = error.message;
+                
+                // Специальная обработка ошибки разрешений
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'Ошибка прав доступа. Проверьте правила Firestore';
+                }
+                
+                alert(`Ошибка: ${errorMessage}`);
             }
         };
     </script>
