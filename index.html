@@ -132,6 +132,69 @@
             font-size: 1rem;
         }
         
+        .request-card {
+            background: var(--light);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+        
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card-details {
+            margin-bottom: 1rem;
+        }
+        
+        .detail-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            min-width: 120px;
+        }
+        
+        .offers-list {
+            margin-top: 1rem;
+            border-top: 1px solid #eee;
+            padding-top: 1rem;
+        }
+        
+        .offer-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border: 1px solid #eee;
+        }
+        
+        .seller-info {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .offer-price {
+            color: var(--success);
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin: 0.5rem 0;
+        }
+        
         .message {
             padding: 1rem;
             margin: 1rem 0;
@@ -199,20 +262,23 @@
     </header>
 
     <div class="container">
-        <!-- Приветствие для продавцов -->
-        <div class="section">
-            <h2 class="section-title">Добро пожаловать в AutoParts Market!</h2>
-            <p>Вы зарегистрированы как продавец автозапчастей. После заполнения профиля магазина вы сможете:</p>
-            <ul style="padding-left: 1.5rem; margin-top: 1rem;">
-                <li>Просматривать запросы покупателей</li>
-                <li>Делать предложения по запчастям</li>
-                <li>Управлять вашими предложениями</li>
-                <li>Общаться с покупателями</li>
-            </ul>
+        <!-- Динамический контент -->
+        <div id="dynamic-content">
+            <div class="section">
+                <h2 class="section-title">Добро пожаловать в AutoParts Market!</h2>
+                <p>Зарегистрируйтесь как продавец автозапчастей, чтобы начать получать запросы от покупателей.</p>
+                <p>После регистрации и заполнения профиля магазина вы сможете:</p>
+                <ul style="padding-left: 1.5rem; margin-top: 1rem;">
+                    <li>Просматривать запросы покупателей</li>
+                    <li>Делать предложения по запчастям</li>
+                    <li>Управлять вашими предложениями</li>
+                </ul>
+                <button id="start-register-btn" class="btn" style="margin-top: 1rem;">Начать регистрацию</button>
+            </div>
         </div>
         
         <!-- Список активных запросов (публичный) -->
-        <div class="section">
+        <div class="section" id="requests-section">
             <h2 class="section-title">Активные запросы покупателей</h2>
             <div id="public-requests-list">
                 <p>Загрузка запросов...</p>
@@ -275,13 +341,22 @@
         const doActionBtn = document.getElementById('do-action-btn');
         const popupTitle = document.getElementById('popup-title');
         const popupMessage = document.getElementById('popup-message');
+        const dynamicContent = document.getElementById('dynamic-content');
+        const startRegisterBtn = document.getElementById('start-register-btn');
+        const requestsSection = document.getElementById('requests-section');
         
         // Текущий режим попапа (login/register)
         let popupMode = 'register';
 
-        // При загрузке страницы гарантируем скрытие попапа
+        // При загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
             loginPopup.classList.add('hidden');
+            
+            // Обработчик кнопки "Начать регистрацию"
+            startRegisterBtn.addEventListener('click', () => {
+                popupMode = 'register';
+                showPopup();
+            });
         });
 
         // Проверка состояния аутентификации
@@ -293,25 +368,94 @@
                 profileBtn.classList.remove('hidden');
                 logoutBtn.classList.remove('hidden');
                 
+                // Обновляем динамический контент
+                updateDynamicContent(user);
+                
                 // Проверяем, заполнил ли продавец данные магазина
                 checkSellerProfile(user);
+                
+                // Загружаем запросы
+                loadPublicRequests();
             } else {
                 // Пользователь вышел
                 loginBtn.classList.remove('hidden');
                 registerBtn.classList.remove('hidden');
                 profileBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
+                
+                // Обновляем динамический контент
+                updateDynamicContent(null);
+                
+                // Загружаем запросы
+                loadPublicRequests();
+            }
+        });
+        
+        // Обновить динамический контент
+        async function updateDynamicContent(user) {
+            if (!user) {
+                dynamicContent.innerHTML = `
+                    <div class="section">
+                        <h2 class="section-title">Добро пожаловать в AutoParts Market!</h2>
+                        <p>Зарегистрируйтесь как продавец автозапчастей, чтобы начать получать запросы от покупателей.</p>
+                        <p>После регистрации и заполнения профиля магазина вы сможете:</p>
+                        <ul style="padding-left: 1.5rem; margin-top: 1rem;">
+                            <li>Просматривать запросы покупателей</li>
+                            <li>Делать предложения по запчастям</li>
+                            <li>Управлять вашими предложениями</li>
+                        </ul>
+                        <button id="start-register-btn" class="btn" style="margin-top: 1rem;">Начать регистрацию</button>
+                    </div>
+                `;
+                
+                // Добавляем обработчик для новой кнопки
+                document.getElementById('start-register-btn').addEventListener('click', () => {
+                    popupMode = 'register';
+                    showPopup();
+                });
+                return;
             }
             
-            // Всегда загружаем публичные запросы
-            loadPublicRequests();
-        });
+            // Проверяем, есть ли профиль магазина
+            const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
+            
+            if (shopQuery.empty) {
+                dynamicContent.innerHTML = `
+                    <div class="section">
+                        <h2 class="section-title">Завершите регистрацию</h2>
+                        <p>Вы успешно зарегистрированы как продавец!</p>
+                        <p>Пожалуйста, заполните данные вашего магазина, чтобы начать работу.</p>
+                        <button id="complete-registration-btn" class="btn" style="margin-top: 1rem;">Заполнить данные магазина</button>
+                    </div>
+                `;
+                
+                // Добавляем обработчик для кнопки
+                document.getElementById('complete-registration-btn').addEventListener('click', showShopProfilePopup);
+            } else {
+                const shopData = shopQuery.docs[0].data();
+                dynamicContent.innerHTML = `
+                    <div class="section">
+                        <h2 class="section-title">Добро пожаловать, ${shopData.shopName || 'Продавец'}!</h2>
+                        <p>Вы зарегистрированы как продавец автозапчастей.</p>
+                        <p>Теперь вы можете:</p>
+                        <ul style="padding-left: 1.5rem; margin-top: 1rem;">
+                            <li>Просматривать запросы покупателей</li>
+                            <li>Делать предложения по запчастям</li>
+                            <li>Управлять вашими предложениями</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
         
         // Проверить профиль продавца
         async function checkSellerProfile(user) {
             const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
             if (shopQuery.empty) {
-                showShopProfilePopup();
+                // Показываем форму заполнения профиля через 1 секунду
+                setTimeout(() => {
+                    showShopProfilePopup();
+                }, 1000);
             }
         }
         
@@ -548,6 +692,8 @@
                 // Закрываем попап через 2 секунды
                 setTimeout(() => {
                     closePopup();
+                    // Обновляем контент страницы
+                    updateDynamicContent(user);
                 }, 2000);
                 
             } catch (error) {
@@ -612,9 +758,14 @@
                 
                 // Проверим, является ли текущий пользователь продавцом
                 let isSeller = false;
+                let hasShopProfile = false;
                 if (auth.currentUser) {
                     const userDoc = await usersRef.doc(auth.currentUser.uid).get();
                     isSeller = userDoc.exists && userDoc.data().role === 'seller';
+                    
+                    // Проверяем наличие профиля магазина
+                    const shopQuery = await shopsRef.where("userId", "==", auth.currentUser.uid).get();
+                    hasShopProfile = !shopQuery.empty;
                 }
                 
                 // Создаем карточки запросов
@@ -682,7 +833,7 @@
                     }
                     
                     // Форма для ответа продавца
-                    if (isSeller) {
+                    if (isSeller && hasShopProfile) {
                         const offerForm = document.createElement('div');
                         offerForm.className = 'offer-form';
                         offerForm.innerHTML = `
