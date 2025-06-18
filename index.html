@@ -653,8 +653,6 @@
                     errorMessage = 'Этот email уже зарегистрирован';
                 } else if (error.code === 'auth/weak-password') {
                     errorMessage = 'Пароль слишком слабый (минимум 6 символов)';
-                } else if (error.code === 'permission-denied') {
-                    errorMessage = 'Ошибка прав доступа. Обновите правила Firestore';
                 }
                 
                 popupMessage.textContent = `Ошибка регистрации: ${errorMessage}`;
@@ -741,11 +739,25 @@
             list.innerHTML = '<p>Загрузка запросов...</p>';
             
             try {
-                const snapshot = await requestsRef
-                    .where("status", "==", "active")
-                    .orderBy("createdAt", "desc")
-                    .limit(10)
-                    .get();
+                // Запрос с обработкой возможных ошибок индексации
+                let snapshot;
+                try {
+                    snapshot = await requestsRef
+                        .where("status", "==", "active")
+                        .orderBy("createdAt", "desc")
+                        .limit(10)
+                        .get();
+                } catch (error) {
+                    // Если ошибка индексации, делаем простой запрос
+                    if (error.code === 'failed-precondition') {
+                        snapshot = await requestsRef
+                            .where("status", "==", "active")
+                            .limit(10)
+                            .get();
+                    } else {
+                        throw error;
+                    }
+                }
                 
                 if (snapshot.empty) {
                     list.innerHTML = '<p>Нет активных запросов</p>';
@@ -754,17 +766,27 @@
                 
                 list.innerHTML = '';
                 
-                // Используем map для создания массива промисов
-                const requestsPromises = snapshot.docs.map(async doc => {
+                // Загрузка всех предложений одним запросом
+                const requestIds = snapshot.docs.map(doc => doc.id);
+                const offersQuery = await offersRef
+                    .where("requestId", "in", requestIds)
+                    .get();
+                
+                // Группировка предложений по ID запроса
+                const offersByRequest = {};
+                offersQuery.forEach(offerDoc => {
+                    const offer = offerDoc.data();
+                    if (!offersByRequest[offer.requestId]) {
+                        offersByRequest[offer.requestId] = [];
+                    }
+                    offersByRequest[offer.requestId].push(offer);
+                });
+                
+                // Создаем карточки запросов
+                snapshot.docs.forEach(doc => {
                     const request = doc.data();
                     const requestDate = request.createdAt ? 
                         new Date(request.createdAt.toDate()).toLocaleString() : 'недавно';
-                    
-                    // Загружаем предложения для этого запроса
-                    const offersSnapshot = await offersRef
-                        .where("requestId", "==", doc.id)
-                        .orderBy("createdAt", "asc")
-                        .get();
                     
                     const requestCard = document.createElement('div');
                     requestCard.className = 'request-card';
@@ -794,12 +816,12 @@
                     const offersList = document.createElement('div');
                     offersList.className = 'offers-list';
                     
-                    if (offersSnapshot.empty) {
+                    const offers = offersByRequest[doc.id] || [];
+                    if (offers.length === 0) {
                         offersList.innerHTML = '<p>Пока нет предложений</p>';
                     } else {
                         offersList.innerHTML = '<h4>Предложения продавцов:</h4>';
-                        offersSnapshot.forEach(offerDoc => {
-                            const offer = offerDoc.data();
+                        offers.forEach(offer => {
                             const offerDate = offer.createdAt ? 
                                 new Date(offer.createdAt.toDate()).toLocaleString() : 'недавно';
                             
@@ -826,13 +848,17 @@
                     
                     // Форма для ответа продавца
                     if (auth.currentUser) {
-                        const userDoc = await usersRef.doc(auth.currentUser.uid).get();
+                        const user = auth.currentUser;
+                        const userDoc = await usersRef.doc(user.uid).get();
                         if (userDoc.exists && userDoc.data().role === 'seller') {
                             const offerForm = document.createElement('div');
                             offerForm.className = 'offer-form';
                             offerForm.innerHTML = `
                                 <div style="margin-top: 1rem;">
-                                    <button class="btn btn-success" onclick="showOfferForm('${doc.id}')">Предложить запчасть</button>
+                                    <button class="btn btn-success" 
+                                            onclick="showOfferForm('${doc.id}')">
+                                        Предложить запчасть
+                                    </button>
                                 </div>
                             `;
                             requestCard.appendChild(offerForm);
@@ -840,16 +866,12 @@
                     }
                     
                     requestCard.appendChild(offersList);
-                    return requestCard;
+                    list.appendChild(requestCard);
                 });
-                
-                // Дожидаемся завершения всех промисов
-                const requestCards = await Promise.all(requestsPromises);
-                requestCards.forEach(card => list.appendChild(card));
                 
             } catch (error) {
                 console.error("Ошибка загрузки запросов:", error);
-                list.innerHTML = '<p class="message error">Ошибка загрузки запросов</p>';
+                list.innerHTML = `<p class="message error">Ошибка загрузки запросов: ${error.message}</p>`;
             }
         }
         
