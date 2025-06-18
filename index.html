@@ -306,6 +306,13 @@
             box-shadow: 0 3px 10px rgba(0,0,0,0.08);
         }
         
+        .buyer-requests-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -340,6 +347,12 @@
             .detail-item > span:not(.detail-label) {
                 min-width: 100%;
             }
+            
+            .buyer-requests-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
@@ -351,6 +364,7 @@
             <button id="register-btn" class="btn">Регистрация</button>
             <button id="profile-btn" class="btn hidden">Мой профиль</button>
             <button id="logout-btn" class="btn hidden">Выйти</button>
+            <button id="buyer-requests-btn" class="btn hidden">Мои запросы</button>
         </div>
     </header>
 
@@ -416,6 +430,29 @@
             </div>
         </div>
         
+        <!-- Мои запросы (для покупателей) -->
+        <div id="buyer-requests-section" class="section hidden">
+            <div class="buyer-requests-header">
+                <h2 class="section-title">Мои запросы</h2>
+                <div>
+                    <button id="back-to-request-form" class="btn">Создать новый запрос</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="view-phone">Ваш телефон *</label>
+                <input type="tel" id="view-phone" placeholder="+7 (777) 123-4567">
+                <small style="display: block; margin-top: 0.3rem;">Введите телефон, который вы указали при создании запроса</small>
+            </div>
+            
+            <button id="view-requests-btn" class="btn btn-success">Показать мои запросы</button>
+            <div id="view-message" class="message"></div>
+            
+            <div id="buyer-requests-list" style="margin-top: 2rem;">
+                <!-- Здесь будут отображаться запросы покупателя -->
+            </div>
+        </div>
+        
         <!-- Сообщение для неавторизованных пользователей -->
         <div id="seller-only-message" class="seller-only-message">
             <h2>Доступ только для продавцов</h2>
@@ -423,6 +460,7 @@
             <div class="auth-buttons" style="justify-content: center; margin-top: 1rem;">
                 <button id="login-btn2" class="btn btn-outline">Вход для продавцов</button>
                 <button id="register-btn2" class="btn">Регистрация продавца</button>
+                <button id="buyer-view-btn" class="btn">Посмотреть мои запросы</button>
             </div>
         </div>
         
@@ -489,6 +527,11 @@
         const sellerOnlyMessage = document.getElementById('seller-only-message');
         const loginBtn2 = document.getElementById('login-btn2');
         const registerBtn2 = document.getElementById('register-btn2');
+        const buyerRequestsBtn = document.getElementById('buyer-requests-btn');
+        const buyerRequestsSection = document.getElementById('buyer-requests-section');
+        const viewRequestsBtn = document.getElementById('view-requests-btn');
+        const backToRequestForm = document.getElementById('back-to-request-form');
+        const buyerViewBtn = document.getElementById('buyer-view-btn');
         
         // Текущий режим попапа
         let popupMode = 'register';
@@ -509,6 +552,7 @@
                 sellerContent.classList.remove('hidden');
                 buyerRequestSection.classList.add('hidden');
                 sellerOnlyMessage.classList.add('hidden');
+                buyerRequestsBtn.classList.remove('hidden');
                 
                 // Проверяем, является ли пользователь продавцом
                 checkSellerRole(user);
@@ -525,6 +569,8 @@
                 buyerRequestSection.classList.remove('hidden');
                 requestsSection.classList.add('hidden');
                 sellerOnlyMessage.classList.remove('hidden');
+                buyerRequestsSection.classList.add('hidden');
+                buyerRequestsBtn.classList.add('hidden');
             }
         });
         
@@ -548,12 +594,14 @@
                         <p>Для доступа к запросам покупателей зарегистрируйтесь как продавец.</p>
                         <div class="auth-buttons" style="justify-content: center; margin-top: 1rem;">
                             <button id="register-as-seller" class="btn">Зарегистрироваться как продавец</button>
+                            <button id="view-my-requests" class="btn">Мои запросы</button>
                         </div>
                     `;
                     document.getElementById('register-as-seller').addEventListener('click', () => {
                         popupMode = 'register';
                         showPopup();
                     });
+                    document.getElementById('view-my-requests').addEventListener('click', showBuyerRequests);
                 }
             } catch (error) {
                 console.error("Ошибка при проверке роли пользователя:", error);
@@ -642,6 +690,30 @@
         });
         
         createRequestBtn.addEventListener('click', createRequest);
+        
+        buyerRequestsBtn.addEventListener('click', showBuyerRequests);
+        
+        buyerViewBtn.addEventListener('click', showBuyerRequests);
+        
+        viewRequestsBtn.addEventListener('click', loadBuyerRequests);
+        
+        backToRequestForm.addEventListener('click', () => {
+            buyerRequestsSection.classList.add('hidden');
+            buyerRequestSection.classList.remove('hidden');
+        });
+        
+        // Функция показа раздела "Мои запросы"
+        function showBuyerRequests() {
+            buyerRequestSection.classList.add('hidden');
+            sellerOnlyMessage.classList.add('hidden');
+            buyerRequestsSection.classList.remove('hidden');
+            
+            // Очищаем предыдущие результаты
+            document.getElementById('buyer-requests-list').innerHTML = '';
+            document.getElementById('view-phone').value = '';
+            document.getElementById('view-message').textContent = '';
+            document.getElementById('view-message').className = 'message';
+        }
         
         // Функция показа попапа
         function showPopup() {
@@ -930,6 +1002,145 @@
                 
                 requestMessage.textContent = `Ошибка: ${errorMessage}`;
                 requestMessage.className = 'message error';
+            }
+        }
+        
+        // Загрузка запросов покупателя
+        async function loadBuyerRequests() {
+            const phone = document.getElementById('view-phone').value;
+            const cleanPhone = phone.replace(/[^\d+]/g, '');
+            const list = document.getElementById('buyer-requests-list');
+            const messageDiv = document.getElementById('view-message');
+            
+            messageDiv.textContent = '';
+            messageDiv.className = 'message';
+            
+            // Проверка телефона
+            if (!cleanPhone) {
+                messageDiv.textContent = 'Введите ваш телефон';
+                messageDiv.className = 'message error';
+                return;
+            }
+            
+            list.innerHTML = '<p>Загрузка ваших запросов...</p>';
+            
+            try {
+                // Запрос запросов покупателя
+                const snapshot = await requestsRef
+                    .where("buyerPhone", "==", cleanPhone)
+                    .orderBy("createdAt", "desc")
+                    .get();
+                
+                if (snapshot.empty) {
+                    list.innerHTML = '<p>У вас нет активных запросов</p>';
+                    return;
+                }
+                
+                // Загрузка всех предложений одним запросом
+                const requestIds = snapshot.docs.map(doc => doc.id);
+                let offersQuery;
+                try {
+                    offersQuery = await offersRef
+                        .where("requestId", "in", requestIds)
+                        .get();
+                } catch (error) {
+                    // Обработка ошибки если слишком много ID
+                    offersQuery = { empty: true, forEach: () => {} };
+                }
+                
+                // Группировка предложений по ID запроса
+                const offersByRequest = {};
+                if (!offersQuery.empty) {
+                    offersQuery.forEach(offerDoc => {
+                        const offer = offerDoc.data();
+                        if (!offersByRequest[offer.requestId]) {
+                            offersByRequest[offer.requestId] = [];
+                        }
+                        offersByRequest[offer.requestId].push(offer);
+                    });
+                }
+                
+                // Очищаем список
+                list.innerHTML = '';
+                
+                // Создаем карточки запросов
+                snapshot.docs.forEach(doc => {
+                    const request = doc.data();
+                    const requestDate = request.createdAt ? 
+                        new Date(request.createdAt.toDate()).toLocaleString() : 'недавно';
+                    
+                    const requestCard = document.createElement('div');
+                    requestCard.className = 'request-card';
+                    requestCard.innerHTML = `
+                        <div class="card-title">${request.partName || 'Без названия'}</div>
+                        <div class="card-meta">
+                            <span>${requestDate}</span>
+                            <span>Статус: ${request.status || 'активен'}</span>
+                        </div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Автомобиль:</span>
+                                <span>${request.carBrand || ''} ${request.carModel || ''} ${request.carYear || ''}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Описание:</span>
+                                <span>${request.details || 'Нет описания'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Желаемая цена:</span>
+                                <span>${request.desiredPrice ? request.desiredPrice + ' ₸' : 'не указана'}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Добавляем предложения
+                    const offersList = document.createElement('div');
+                    offersList.className = 'offers-list';
+                    
+                    const offers = offersByRequest[doc.id] || [];
+                    if (offers.length === 0) {
+                        offersList.innerHTML = '<p>Пока нет предложений от продавцов</p>';
+                    } else {
+                        offersList.innerHTML = '<h4>Предложения продавцов:</h4>';
+                        offers.forEach(offer => {
+                            const offerDate = offer.createdAt ? 
+                                new Date(offer.createdAt.toDate()).toLocaleString() : 'недавно';
+                            
+                            const offerCard = document.createElement('div');
+                            offerCard.className = 'offer-card';
+                            offerCard.innerHTML = `
+                                <div class="seller-info">${offer.shopName || 'Магазин'}</div>
+                                <div class="offer-price">${offer.price || '0'} ₸</div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Адрес:</span>
+                                    <span>${offer.shopAddress || 'не указан'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Телефон:</span>
+                                    <span>${offer.shopPhone || 'не указан'}</span>
+                                </div>
+                                ${offer.comment ? `<p>Комментарий: ${offer.comment}</p>` : ''}
+                                <div class="card-meta">${offerDate}</div>
+                            `;
+                            
+                            offersList.appendChild(offerCard);
+                        });
+                    }
+                    
+                    requestCard.appendChild(offersList);
+                    list.appendChild(requestCard);
+                });
+                
+                messageDiv.textContent = `Найдено запросов: ${snapshot.docs.length}`;
+                messageDiv.className = 'message success';
+                
+            } catch (error) {
+                list.innerHTML = `
+                    <div class="message error">
+                        <p>Ошибка загрузки запросов: ${error.message}</p>
+                        <p>Пожалуйста, попробуйте позже</p>
+                    </div>
+                `;
             }
         }
         
