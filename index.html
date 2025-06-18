@@ -32,6 +32,12 @@
             min-height: 100vh;
         }
         
+        body.popup-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+        
         header {
             background: linear-gradient(135deg, var(--primary), var(--dark));
             color: white;
@@ -213,7 +219,7 @@
         }
         
         .hidden {
-            display: none !important; /* Важное изменение */
+            display: none !important;
         }
         
         #login-popup {
@@ -472,6 +478,12 @@
         
         closePopupBtn.addEventListener('click', () => {
             loginPopup.classList.add('hidden');
+            
+            // Восстанавливаем прокрутку
+            const scrollY = document.body.style.top;
+            document.body.classList.remove('popup-open');
+            document.body.style.top = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
         });
         
         doActionBtn.addEventListener('click', () => {
@@ -506,6 +518,10 @@
         function showPopup(mode) {
             popupMode = mode;
             loginPopup.classList.remove('hidden');
+            
+            // Сохраняем позицию прокрутки
+            document.body.style.top = `-${window.scrollY}px`;
+            document.body.classList.add('popup-open');
             
             if (mode === 'login') {
                 popupTitle.textContent = 'Вход';
@@ -545,6 +561,12 @@
             try {
                 await auth.signInWithEmailAndPassword(email, password);
                 loginPopup.classList.add('hidden');
+                
+                // Восстанавливаем прокрутку
+                const scrollY = document.body.style.top;
+                document.body.classList.remove('popup-open');
+                document.body.style.top = '';
+                window.scrollTo(0, parseInt(scrollY || '0') * -1);
             } catch (error) {
                 let errorMessage = error.message;
                 
@@ -615,6 +637,12 @@
                 // Закрываем попап через 2 секунды
                 setTimeout(() => {
                     loginPopup.classList.add('hidden');
+                    
+                    // Восстанавливаем прокрутку
+                    const scrollY = document.body.style.top;
+                    document.body.classList.remove('popup-open');
+                    document.body.style.top = '';
+                    window.scrollTo(0, parseInt(scrollY || '0') * -1);
                 }, 2000);
                 
             } catch (error) {
@@ -625,6 +653,8 @@
                     errorMessage = 'Этот email уже зарегистрирован';
                 } else if (error.code === 'auth/weak-password') {
                     errorMessage = 'Пароль слишком слабый (минимум 6 символов)';
+                } else if (error.code === 'permission-denied') {
+                    errorMessage = 'Ошибка прав доступа. Обновите правила Firestore';
                 }
                 
                 popupMessage.textContent = `Ошибка регистрации: ${errorMessage}`;
@@ -705,7 +735,7 @@
             }
         }
         
-        // Загрузка публичных запросов
+        // Загрузка публичных запросов (исправленная)
         async function loadPublicRequests() {
             const list = document.getElementById('public-requests-list');
             list.innerHTML = '<p>Загрузка запросов...</p>';
@@ -714,7 +744,7 @@
                 const snapshot = await requestsRef
                     .where("status", "==", "active")
                     .orderBy("createdAt", "desc")
-                    .limit(10) // Ограничиваем количество запросов для производительности
+                    .limit(10)
                     .get();
                 
                 if (snapshot.empty) {
@@ -724,7 +754,8 @@
                 
                 list.innerHTML = '';
                 
-                snapshot.forEach(async doc => {
+                // Используем map для создания массива промисов
+                const requestsPromises = snapshot.docs.map(async doc => {
                     const request = doc.data();
                     const requestDate = request.createdAt ? 
                         new Date(request.createdAt.toDate()).toLocaleString() : 'недавно';
@@ -809,8 +840,13 @@
                     }
                     
                     requestCard.appendChild(offersList);
-                    list.appendChild(requestCard);
+                    return requestCard;
                 });
+                
+                // Дожидаемся завершения всех промисов
+                const requestCards = await Promise.all(requestsPromises);
+                requestCards.forEach(card => list.appendChild(card));
+                
             } catch (error) {
                 console.error("Ошибка загрузки запросов:", error);
                 list.innerHTML = '<p class="message error">Ошибка загрузки запросов</p>';
