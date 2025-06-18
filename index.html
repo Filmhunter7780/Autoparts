@@ -8,7 +8,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
-        /* Все стили остаются без изменений */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -978,7 +977,7 @@
                             <div style="margin-top: 1rem;">
                                 <button class="btn btn-success offer-btn" 
                                         data-request-id="${doc.id}"
-                                        onclick="showOfferForm('${doc.id}')">
+                                        onclick="window.showOfferForm('${doc.id}')">
                                     Предложить запчасть
                                 </button>
                             </div>
@@ -1021,34 +1020,31 @@
                 try {
                     offersQuery = await offersRef
                         .where("sellerId", "==", user.uid)
-                        .orderBy("createdAt", "desc")
                         .get();
                 } catch (error) {
-                    if (error.code === 'failed-precondition') {
-                        // Запрос без сортировки
-                        offersQuery = await offersRef
-                            .where("sellerId", "==", user.uid)
-                            .get();
-                    } else {
-                        throw error;
-                    }
+                    console.error("Ошибка при загрузке предложений:", error);
+                    return;
                 }
                 
                 // Группируем по requestId с последним временем
                 const lastOfferTimes = {};
-                offersQuery.forEach(doc => {
-                    const offer = doc.data();
-                    if (!lastOfferTimes[offer.requestId] || 
-                        lastOfferTimes[offer.requestId] < offer.createdAt) {
-                        lastOfferTimes[offer.requestId] = offer.createdAt;
-                    }
-                });
+                if (!offersQuery.empty) {
+                    offersQuery.forEach(doc => {
+                        const offer = doc.data();
+                        // Исправление: правильно сохраняем время последнего предложения
+                        if (!lastOfferTimes[offer.requestId] || 
+                            lastOfferTimes[offer.requestId].seconds < offer.createdAt.seconds) {
+                            lastOfferTimes[offer.requestId] = offer.createdAt;
+                        }
+                    });
+                }
                 
                 // Проверяем каждую кнопку предложения
                 document.querySelectorAll('.offer-btn').forEach(btn => {
                     const requestId = btn.getAttribute('data-request-id');
                     const lastOfferTime = lastOfferTimes[requestId];
                     
+                    // Исправление: проверяем только если есть запись о предложении
                     if (lastOfferTime) {
                         const now = new Date();
                         const offerTime = lastOfferTime.toDate();
@@ -1080,14 +1076,23 @@
             const fifteenMinutesAgo = new Date();
             fifteenMinutesAgo.setMinutes(fifteenMinutesAgo.getMinutes() - 15);
             
-            const recentOfferQuery = await offersRef
-                .where("requestId", "==", requestId)
-                .where("sellerId", "==", user.uid)
-                .where("createdAt", ">", fifteenMinutesAgo)
-                .get();
-            
-            if (!recentOfferQuery.empty) {
-                alert("Вы уже отправляли предложение по этому запросу менее 15 минут назад. Пожалуйста, подождите.");
+            try {
+                // Исправление: правильное преобразование даты для Firestore
+                const timestamp = firebase.firestore.Timestamp.fromDate(fifteenMinutesAgo);
+                
+                const recentOfferQuery = await offersRef
+                    .where("requestId", "==", requestId)
+                    .where("sellerId", "==", user.uid)
+                    .where("createdAt", ">", timestamp)
+                    .get();
+                
+                if (!recentOfferQuery.empty) {
+                    alert("Вы уже отправляли предложение по этому запросу менее 15 минут назад. Пожалуйста, подождите.");
+                    return;
+                }
+            } catch (error) {
+                console.error("Ошибка проверки предложения:", error);
+                alert("Произошла ошибка при проверке. Попробуйте позже.");
                 return;
             }
             
