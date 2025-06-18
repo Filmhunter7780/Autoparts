@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
+        /* Стили остаются без изменений */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -289,7 +290,7 @@
         <div class="auth-buttons">
             <button id="login-btn" class="btn btn-outline">Вход</button>
             <button id="register-btn" class="btn">Регистрация</button>
-            <button id="logout-btn" class="btn btn-danger hidden">Выйти</button>
+            <button id="logout-btn" class="btn hidden">Выйти</button>
         </div>
     </header>
 
@@ -391,7 +392,7 @@
                 <div id="popup-message" class="message"></div>
                 <div style="display: flex; gap: 10px; margin-top: 1rem;">
                     <button id="do-action-btn" class="btn">Войти</button>
-                    <button id="close-popup-btn" class="btn btn-danger">Закрыть</button>
+                    <button id="close-popup-btn" class="btn">Закрыть</button>
                 </div>
             </div>
         </div>
@@ -403,7 +404,7 @@
             apiKey: "AIzaSyD2Sfe5fYXf4u4qgJKdqtLSh1dJKo4vkJA",
             authDomain: "autoparts-d08ea.firebaseapp.com",
             projectId: "autoparts-d08ea",
-            storageBucket: "autoparts-d08ea.firebasestorage.app",
+            storageBucket: "autoparts-d08ea.appspot.com",
             messagingSenderId: "536268004529",
             appId: "1:536268004529:web:0a8629bd11899679709690"
         };
@@ -446,7 +447,6 @@
                 loginBtn.classList.remove('hidden');
                 registerBtn.classList.remove('hidden');
                 logoutBtn.classList.add('hidden');
-                loginPopup.classList.add('hidden');
             }
             
             // Всегда загружаем публичные запросы
@@ -513,6 +513,12 @@
                 doActionBtn.textContent = 'Зарегистрироваться';
                 roleSelector.classList.remove('hidden');
                 sellerFields.classList.add('hidden');
+                
+                // Сбрасываем выбор роли при регистрации
+                document.querySelectorAll('.role-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                selectedRole = 'buyer';
             }
             
             // Сброс полей
@@ -522,6 +528,7 @@
             document.getElementById('shop-phone').value = '';
             document.getElementById('shop-address').value = '';
             popupMessage.textContent = '';
+            popupMessage.className = 'message';
         }
         
         // Функция входа
@@ -535,7 +542,18 @@
                 await auth.signInWithEmailAndPassword(email, password);
                 loginPopup.classList.add('hidden');
             } catch (error) {
-                popupMessage.textContent = `Ошибка входа: ${error.message}`;
+                let errorMessage = error.message;
+                
+                // Уточняем сообщения об ошибках
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'Пользователь с таким email не найден';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = 'Неверный пароль';
+                } else if (error.code === 'auth/invalid-credential') {
+                    errorMessage = 'Некорректные учетные данные';
+                }
+                
+                popupMessage.textContent = `Ошибка входа: ${errorMessage}`;
                 popupMessage.className = 'message error';
             }
         }
@@ -550,6 +568,13 @@
             
             popupMessage.textContent = '';
             popupMessage.className = 'message';
+            
+            // Проверка пароля
+            if (password.length < 6) {
+                popupMessage.textContent = 'Пароль должен содержать не менее 6 символов';
+                popupMessage.className = 'message error';
+                return;
+            }
             
             // Проверка для продавцов
             if (selectedRole === 'seller' && (!shopName || !shopPhone || !shopAddress)) {
@@ -589,7 +614,16 @@
                 }, 2000);
                 
             } catch (error) {
-                popupMessage.textContent = `Ошибка регистрации: ${error.message}`;
+                let errorMessage = error.message;
+                
+                // Уточняем сообщения об ошибках
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'Этот email уже зарегистрирован';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'Пароль слишком слабый (минимум 6 символов)';
+                }
+                
+                popupMessage.textContent = `Ошибка регистрации: ${errorMessage}`;
                 popupMessage.className = 'message error';
             }
         }
@@ -614,6 +648,16 @@
                 return;
             }
             
+            // Проверка формата телефона
+            const phoneRegex = /^\+?[0-9]{10,15}$/;
+            const cleanPhone = buyerPhone.replace(/[^\d+]/g, '');
+            
+            if (!phoneRegex.test(cleanPhone)) {
+                requestMessage.textContent = 'Введите корректный номер телефона';
+                requestMessage.className = 'message error';
+                return;
+            }
+            
             try {
                 const requestData = {
                     carBrand,
@@ -621,7 +665,7 @@
                     carYear: document.getElementById('car-year').value || '',
                     partName,
                     details: document.getElementById('part-details').value || '',
-                    buyerPhone,
+                    buyerPhone: cleanPhone,
                     desiredPrice: document.getElementById('buyer-price').value || 0,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     status: "active"
@@ -666,6 +710,7 @@
                 const snapshot = await requestsRef
                     .where("status", "==", "active")
                     .orderBy("createdAt", "desc")
+                    .limit(10) // Ограничиваем количество запросов для производительности
                     .get();
                 
                 if (snapshot.empty) {
@@ -763,14 +808,18 @@
                     list.appendChild(requestCard);
                 });
             } catch (error) {
-                list.innerHTML = `<p class="message error">Ошибка загрузки: ${error.message}</p>`;
+                console.error("Ошибка загрузки запросов:", error);
+                list.innerHTML = '<p class="message error">Ошибка загрузки запросов</p>';
             }
         }
         
         // Форма предложения для продавца
         window.showOfferForm = async function(requestId) {
             const user = auth.currentUser;
-            if (!user) return;
+            if (!user) {
+                alert('Для размещения предложения войдите в систему!');
+                return;
+            }
             
             // Проверяем, является ли пользователь продавцом
             const userDoc = await usersRef.doc(user.uid).get();
