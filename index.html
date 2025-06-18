@@ -296,6 +296,7 @@
         <div class="auth-buttons">
             <button id="login-btn" class="btn btn-outline">Вход</button>
             <button id="register-btn" class="btn">Регистрация</button>
+            <button id="profile-btn" class="btn hidden">Мой профиль</button>
             <button id="logout-btn" class="btn hidden">Выйти</button>
         </div>
     </header>
@@ -370,11 +371,11 @@
                     </div>
                 </div>
                 
-                <div class="form-group">
+                <div class="form-group" id="email-field">
                     <label for="popup-email">Email</label>
                     <input type="email" id="popup-email" placeholder="Ваш email">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="password-field">
                     <label for="popup-password">Пароль</label>
                     <input type="password" id="popup-password" placeholder="Ваш пароль">
                 </div>
@@ -430,6 +431,7 @@
         const loginBtn = document.getElementById('login-btn');
         const registerBtn = document.getElementById('register-btn');
         const logoutBtn = document.getElementById('logout-btn');
+        const profileBtn = document.getElementById('profile-btn');
         const loginPopup = document.getElementById('login-popup');
         const closePopupBtn = document.getElementById('close-popup-btn');
         const doActionBtn = document.getElementById('do-action-btn');
@@ -453,6 +455,7 @@
                 // Пользователь вошел
                 loginBtn.classList.add('hidden');
                 registerBtn.classList.add('hidden');
+                profileBtn.classList.remove('hidden');
                 logoutBtn.classList.remove('hidden');
                 
                 // Проверяем, заполнил ли продавец данные магазина
@@ -461,6 +464,7 @@
                 // Пользователь вышел
                 loginBtn.classList.remove('hidden');
                 registerBtn.classList.remove('hidden');
+                profileBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
             }
             
@@ -472,10 +476,10 @@
         async function checkSellerProfile(user) {
             const userDoc = await usersRef.doc(user.uid).get();
             if (userDoc.exists && userDoc.data().role === 'seller') {
-                const shopDoc = await shopsRef.doc(user.uid).get();
-                if (!shopDoc.exists) {
+                const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
+                if (shopQuery.empty) {
                     alert('Заполните данные вашего магазина в профиле!');
-                    showPopup('profile');
+                    showShopProfilePopup();
                 }
             }
         }
@@ -493,21 +497,21 @@
             auth.signOut();
         });
         
+        profileBtn.addEventListener('click', () => {
+            showShopProfilePopup();
+        });
+        
         closePopupBtn.addEventListener('click', () => {
-            loginPopup.classList.add('hidden');
-            
-            // Восстанавливаем прокрутку
-            const scrollY = document.body.style.top;
-            document.body.classList.remove('popup-open');
-            document.body.style.top = '';
-            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            closePopup();
         });
         
         doActionBtn.addEventListener('click', () => {
             if (popupMode === 'login') {
                 login();
-            } else {
+            } else if (popupMode === 'register') {
                 register();
+            } else if (popupMode === 'shop_profile') {
+                saveShopProfile();
             }
         });
         
@@ -540,6 +544,11 @@
             document.body.style.top = `-${window.scrollY}px`;
             document.body.classList.add('popup-open');
             
+            // Показываем все поля по умолчанию
+            document.getElementById('email-field').style.display = 'block';
+            document.getElementById('password-field').style.display = 'block';
+            roleSelector.style.display = 'flex';
+            
             if (mode === 'login') {
                 popupTitle.textContent = 'Вход';
                 doActionBtn.textContent = 'Войти';
@@ -568,6 +577,44 @@
             popupMessage.className = 'message';
         }
         
+        // Функция показа попапа профиля магазина
+        function showShopProfilePopup() {
+            popupMode = 'shop_profile';
+            popupTitle.textContent = 'Данные магазина';
+            doActionBtn.textContent = 'Сохранить';
+            loginPopup.classList.remove('hidden');
+            
+            // Сохраняем позицию прокрутки
+            document.body.style.top = `-${window.scrollY}px`;
+            document.body.classList.add('popup-open');
+            
+            // Скрываем ненужные поля
+            document.getElementById('email-field').style.display = 'none';
+            document.getElementById('password-field').style.display = 'none';
+            roleSelector.style.display = 'none';
+            
+            // Показываем поля магазина
+            sellerFields.classList.remove('hidden');
+            
+            // Сброс полей
+            document.getElementById('shop-name').value = '';
+            document.getElementById('shop-phone').value = '';
+            document.getElementById('shop-address').value = '';
+            popupMessage.textContent = '';
+            popupMessage.className = 'message';
+        }
+        
+        // Закрыть попап
+        function closePopup() {
+            loginPopup.classList.add('hidden');
+            
+            // Восстанавливаем прокрутку
+            const scrollY = document.body.style.top;
+            document.body.classList.remove('popup-open');
+            document.body.style.top = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+        
         // Функция входа
         async function login() {
             const email = document.getElementById('popup-email').value;
@@ -577,13 +624,7 @@
             
             try {
                 await auth.signInWithEmailAndPassword(email, password);
-                loginPopup.classList.add('hidden');
-                
-                // Восстанавливаем прокрутку
-                const scrollY = document.body.style.top;
-                document.body.classList.remove('popup-open');
-                document.body.style.top = '';
-                window.scrollTo(0, parseInt(scrollY || '0') * -1);
+                closePopup();
             } catch (error) {
                 let errorMessage = error.message;
                 
@@ -639,7 +680,7 @@
                 
                 // Сохраняем данные магазина для продавцов
                 if (selectedRole === 'seller') {
-                    await shopsRef.doc(user.uid).set({
+                    await shopsRef.add({
                         userId: user.uid,
                         shopName,
                         shopPhone,
@@ -653,13 +694,7 @@
                 
                 // Закрываем попап через 2 секунды
                 setTimeout(() => {
-                    loginPopup.classList.add('hidden');
-                    
-                    // Восстанавливаем прокрутку
-                    const scrollY = document.body.style.top;
-                    document.body.classList.remove('popup-open');
-                    document.body.style.top = '';
-                    window.scrollTo(0, parseInt(scrollY || '0') * -1);
+                    closePopup();
                 }, 2000);
                 
             } catch (error) {
@@ -673,6 +708,61 @@
                 }
                 
                 popupMessage.textContent = `Ошибка регистрации: ${errorMessage}`;
+                popupMessage.className = 'message error';
+            }
+        }
+        
+        // Сохранение профиля магазина
+        async function saveShopProfile() {
+            const shopName = document.getElementById('shop-name').value;
+            const shopPhone = document.getElementById('shop-phone').value;
+            const shopAddress = document.getElementById('shop-address').value;
+            const user = auth.currentUser;
+
+            popupMessage.textContent = '';
+            popupMessage.className = 'message';
+            
+            // Проверка заполненности полей
+            if (!shopName || !shopPhone || !shopAddress) {
+                popupMessage.textContent = 'Заполните все поля!';
+                popupMessage.className = 'message error';
+                return;
+            }
+            
+            try {
+                // Проверяем существующий профиль
+                const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
+                
+                if (shopQuery.empty) {
+                    // Создаем новый профиль
+                    await shopsRef.add({
+                        userId: user.uid,
+                        shopName,
+                        shopPhone,
+                        shopAddress,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    // Обновляем первый найденный профиль
+                    const shopDoc = shopQuery.docs[0];
+                    await shopDoc.ref.update({
+                        shopName,
+                        shopPhone,
+                        shopAddress,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+                popupMessage.textContent = 'Данные магазина сохранены!';
+                popupMessage.className = 'message success';
+                
+                // Закрываем попап через 2 секунды
+                setTimeout(() => {
+                    closePopup();
+                }, 2000);
+                
+            } catch (error) {
+                popupMessage.textContent = `Ошибка: ${error.message}`;
                 popupMessage.className = 'message error';
             }
         }
@@ -724,7 +814,7 @@
                     details: document.getElementById('part-details').value || '',
                     buyerPhone: cleanPhone,
                     desiredPrice: document.getElementById('buyer-price').value || 0,
-                    buyerId: user.uid, // Всегда привязываем к пользователю
+                    buyerId: user.uid,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     status: "active"
                 };
@@ -919,13 +1009,14 @@
             }
             
             // Получаем данные магазина
-            const shopDoc = await shopsRef.doc(user.uid).get();
-            if (!shopDoc.exists) {
+            const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
+            if (shopQuery.empty) {
                 alert('Заполните данные магазина в профиле!');
+                showShopProfilePopup();
                 return;
             }
             
-            const shopData = shopDoc.data();
+            const shopData = shopQuery.docs[0].data();
             
             const price = prompt("Введите вашу цену (тенге):");
             if (!price || isNaN(price)) {
