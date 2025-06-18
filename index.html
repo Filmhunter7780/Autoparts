@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoParts Market - Площадка для автозапчастей</title>
+    <title>AutoParts Market - Площадка для продавцов автозапчастей</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
-        /* Стили остаются без изменений */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -133,75 +132,6 @@
             font-size: 1rem;
         }
         
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1rem;
-        }
-        
-        .request-card {
-            background: var(--light);
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            border-left: 4px solid var(--secondary);
-        }
-        
-        .card-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-            color: var(--primary);
-        }
-        
-        .card-meta {
-            display: flex;
-            justify-content: space-between;
-            color: var(--gray);
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-        
-        .card-details {
-            margin-bottom: 1rem;
-        }
-        
-        .detail-item {
-            margin-bottom: 0.5rem;
-            display: flex;
-        }
-        
-        .detail-label {
-            font-weight: 500;
-            min-width: 120px;
-        }
-        
-        .offers-list {
-            margin-top: 1rem;
-            border-top: 1px solid #eee;
-            padding-top: 1rem;
-        }
-        
-        .offer-card {
-            background: white;
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            border: 1px solid #eee;
-        }
-        
-        .seller-info {
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        
-        .offer-price {
-            color: var(--success);
-            font-weight: bold;
-            font-size: 1.2rem;
-            margin: 0.5rem 0;
-        }
-        
         .message {
             padding: 1rem;
             margin: 1rem 0;
@@ -245,36 +175,7 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
-        .role-selector {
-            display: flex;
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-        
-        .role-option {
-            flex: 1;
-            text-align: center;
-            padding: 1rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .role-option.selected {
-            border-color: var(--secondary);
-            background-color: rgba(52, 152, 219, 0.1);
-        }
-        
-        .role-option input {
-            margin-bottom: 0.5rem;
-        }
-        
         @media (max-width: 768px) {
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-            
             .auth-buttons {
                 flex-direction: column;
                 gap: 5px;
@@ -282,10 +183,6 @@
             
             .popup-content {
                 padding: 1rem;
-            }
-            
-            .role-selector {
-                flex-direction: column;
             }
         }
     </style>
@@ -302,53 +199,21 @@
     </header>
 
     <div class="container">
-        <!-- Главная страница с формой запроса -->
+        <!-- Приветствие для продавцов -->
         <div class="section">
-            <h2 class="section-title">Найти автозапчасть</h2>
-            <p>Заполните форму, и продавцы предложат вам нужную запчасть</p>
-            
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="car-brand">Марка автомобиля *</label>
-                    <input type="text" id="car-brand" placeholder="Например: Toyota">
-                </div>
-                <div class="form-group">
-                    <label for="car-model">Модель *</label>
-                    <input type="text" id="car-model" placeholder="Например: Camry">
-                </div>
-                <div class="form-group">
-                    <label for="car-year">Год выпуска</label>
-                    <input type="number" id="car-year" placeholder="Например: 2018">
-                </div>
-                <div class="form-group">
-                    <label for="part-name">Название запчасти *</label>
-                    <input type="text" id="part-name" placeholder="Например: Тормозные колодки">
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="part-details">Дополнительные детали</label>
-                <textarea id="part-details" placeholder="Опишите что вам нужно, VIN код или особенности"></textarea>
-            </div>
-            
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="buyer-phone">Ваш телефон *</label>
-                    <input type="tel" id="buyer-phone" placeholder="+7 (777) 123-4567">
-                </div>
-                <div class="form-group">
-                    <label for="buyer-price">Желаемая цена (тенге)</label>
-                    <input type="number" id="buyer-price" placeholder="Например: 25000">
-                </div>
-            </div>
-            
-            <button id="create-request-btn" class="btn btn-success">Отправить запрос продавцам</button>
-            <div id="request-message" class="message"></div>
+            <h2 class="section-title">Добро пожаловать в AutoParts Market!</h2>
+            <p>Вы зарегистрированы как продавец автозапчастей. После заполнения профиля магазина вы сможете:</p>
+            <ul style="padding-left: 1.5rem; margin-top: 1rem;">
+                <li>Просматривать запросы покупателей</li>
+                <li>Делать предложения по запчастям</li>
+                <li>Управлять вашими предложениями</li>
+                <li>Общаться с покупателями</li>
+            </ul>
         </div>
         
         <!-- Список активных запросов (публичный) -->
         <div class="section">
-            <h2 class="section-title">Активные запросы</h2>
+            <h2 class="section-title">Активные запросы покупателей</h2>
             <div id="public-requests-list">
                 <p>Загрузка запросов...</p>
             </div>
@@ -357,48 +222,21 @@
         <!-- Попап авторизации/регистрации -->
         <div id="login-popup" class="hidden">
             <div class="popup-content">
-                <h2 class="section-title" id="popup-title">Вход</h2>
+                <h2 class="section-title" id="popup-title">Регистрация продавца</h2>
                 
-                <!-- Выбор роли при регистрации -->
-                <div id="role-selector" class="role-selector hidden">
-                    <div class="role-option" data-role="buyer">
-                        <input type="radio" name="role" id="role-buyer"> 
-                        <label for="role-buyer">Покупатель</label>
-                    </div>
-                    <div class="role-option" data-role="seller">
-                        <input type="radio" name="role" id="role-seller"> 
-                        <label for="role-seller">Продавец</label>
-                    </div>
+                <div class="form-group">
+                    <label for="popup-email">Email *</label>
+                    <input type="email" id="popup-email" placeholder="Ваш email" required>
                 </div>
-                
-                <div class="form-group" id="email-field">
-                    <label for="popup-email">Email</label>
-                    <input type="email" id="popup-email" placeholder="Ваш email">
-                </div>
-                <div class="form-group" id="password-field">
-                    <label for="popup-password">Пароль</label>
-                    <input type="password" id="popup-password" placeholder="Ваш пароль">
-                </div>
-                
-                <!-- Дополнительные поля для продавца -->
-                <div id="seller-fields" class="hidden">
-                    <div class="form-group">
-                        <label for="shop-name">Название магазина *</label>
-                        <input type="text" id="shop-name" placeholder="Например: ИП Автозапчасти">
-                    </div>
-                    <div class="form-group">
-                        <label for="shop-phone">Телефон магазина *</label>
-                        <input type="tel" id="shop-phone" placeholder="+7 (777) 765-4321">
-                    </div>
-                    <div class="form-group">
-                        <label for="shop-address">Адрес магазина *</label>
-                        <input type="text" id="shop-address" placeholder="Улица, дом, город">
-                    </div>
+                <div class="form-group">
+                    <label for="popup-password">Пароль *</label>
+                    <input type="password" id="popup-password" placeholder="Ваш пароль" required>
+                    <small style="display: block; margin-top: 0.3rem;">Пароль должен содержать не менее 6 символов</small>
                 </div>
                 
                 <div id="popup-message" class="message"></div>
                 <div style="display: flex; gap: 10px; margin-top: 1rem;">
-                    <button id="do-action-btn" class="btn">Войти</button>
+                    <button id="do-action-btn" class="btn">Зарегистрироваться</button>
                     <button id="close-popup-btn" class="btn">Закрыть</button>
                 </div>
             </div>
@@ -436,13 +274,10 @@
         const closePopupBtn = document.getElementById('close-popup-btn');
         const doActionBtn = document.getElementById('do-action-btn');
         const popupTitle = document.getElementById('popup-title');
-        const roleSelector = document.getElementById('role-selector');
-        const sellerFields = document.getElementById('seller-fields');
         const popupMessage = document.getElementById('popup-message');
         
         // Текущий режим попапа (login/register)
-        let popupMode = 'login';
-        let selectedRole = 'buyer';
+        let popupMode = 'register';
 
         // При загрузке страницы гарантируем скрытие попапа
         document.addEventListener('DOMContentLoaded', function() {
@@ -474,23 +309,21 @@
         
         // Проверить профиль продавца
         async function checkSellerProfile(user) {
-            const userDoc = await usersRef.doc(user.uid).get();
-            if (userDoc.exists && userDoc.data().role === 'seller') {
-                const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
-                if (shopQuery.empty) {
-                    alert('Заполните данные вашего магазина в профиле!');
-                    showShopProfilePopup();
-                }
+            const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
+            if (shopQuery.empty) {
+                showShopProfilePopup();
             }
         }
         
         // Обработчики кнопок
         loginBtn.addEventListener('click', () => {
-            showPopup('login');
+            popupMode = 'login';
+            showPopup();
         });
         
         registerBtn.addEventListener('click', () => {
-            showPopup('register');
+            popupMode = 'register';
+            showPopup();
         });
         
         logoutBtn.addEventListener('click', () => {
@@ -510,69 +343,26 @@
                 login();
             } else if (popupMode === 'register') {
                 register();
-            } else if (popupMode === 'shop_profile') {
-                saveShopProfile();
             }
         });
         
-        // Обработчики выбора роли
-        document.querySelectorAll('.role-option').forEach(option => {
-            option.addEventListener('click', function() {
-                // Удаляем выделение у всех
-                document.querySelectorAll('.role-option').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                
-                // Добавляем выделение текущему
-                this.classList.add('selected');
-                
-                // Устанавливаем выбранную роль
-                selectedRole = this.getAttribute('data-role');
-                document.querySelector(`#role-${selectedRole}`).checked = true;
-                
-                // Показываем/скрываем поля для продавца
-                sellerFields.classList.toggle('hidden', selectedRole !== 'seller');
-            });
-        });
-        
         // Функция показа попапа
-        function showPopup(mode) {
-            popupMode = mode;
+        function showPopup() {
             loginPopup.classList.remove('hidden');
-            
-            // Сохраняем позицию прокрутки
             document.body.style.top = `-${window.scrollY}px`;
             document.body.classList.add('popup-open');
             
-            // Показываем все поля по умолчанию
-            document.getElementById('email-field').style.display = 'block';
-            document.getElementById('password-field').style.display = 'block';
-            roleSelector.style.display = 'flex';
-            
-            if (mode === 'login') {
-                popupTitle.textContent = 'Вход';
+            if (popupMode === 'login') {
+                popupTitle.textContent = 'Вход для продавцов';
                 doActionBtn.textContent = 'Войти';
-                roleSelector.classList.add('hidden');
-                sellerFields.classList.add('hidden');
             } else {
-                popupTitle.textContent = 'Регистрация';
+                popupTitle.textContent = 'Регистрация продавца';
                 doActionBtn.textContent = 'Зарегистрироваться';
-                roleSelector.classList.remove('hidden');
-                sellerFields.classList.add('hidden');
-                
-                // Сбрасываем выбор роли при регистрации
-                document.querySelectorAll('.role-option').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                selectedRole = 'buyer';
             }
             
             // Сброс полей
             document.getElementById('popup-email').value = '';
             document.getElementById('popup-password').value = '';
-            document.getElementById('shop-name').value = '';
-            document.getElementById('shop-phone').value = '';
-            document.getElementById('shop-address').value = '';
             popupMessage.textContent = '';
             popupMessage.className = 'message';
         }
@@ -580,35 +370,46 @@
         // Функция показа попапа профиля магазина
         function showShopProfilePopup() {
             popupMode = 'shop_profile';
-            popupTitle.textContent = 'Данные магазина';
-            doActionBtn.textContent = 'Сохранить';
             loginPopup.classList.remove('hidden');
-            
-            // Сохраняем позицию прокрутки
             document.body.style.top = `-${window.scrollY}px`;
             document.body.classList.add('popup-open');
             
-            // Скрываем ненужные поля
-            document.getElementById('email-field').style.display = 'none';
-            document.getElementById('password-field').style.display = 'none';
-            roleSelector.style.display = 'none';
+            popupTitle.textContent = 'Данные вашего магазина';
+            doActionBtn.textContent = 'Сохранить';
             
-            // Показываем поля магазина
-            sellerFields.classList.remove('hidden');
+            // Содержимое попапа для профиля магазина
+            const popupContent = document.querySelector('.popup-content');
+            popupContent.innerHTML = `
+                <h2 class="section-title">Данные вашего магазина</h2>
+                
+                <div class="form-group">
+                    <label for="shop-name">Название магазина *</label>
+                    <input type="text" id="shop-name" placeholder="Например: ИП Автозапчасти" required>
+                </div>
+                <div class="form-group">
+                    <label for="shop-phone">Телефон магазина *</label>
+                    <input type="tel" id="shop-phone" placeholder="+7 (777) 765-4321" required>
+                </div>
+                <div class="form-group">
+                    <label for="shop-address">Адрес магазина *</label>
+                    <input type="text" id="shop-address" placeholder="Улица, дом, город" required>
+                </div>
+                
+                <div id="popup-message" class="message"></div>
+                <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                    <button id="do-action-btn" class="btn">Сохранить</button>
+                    <button id="close-popup-btn" class="btn">Закрыть</button>
+                </div>
+            `;
             
-            // Сброс полей
-            document.getElementById('shop-name').value = '';
-            document.getElementById('shop-phone').value = '';
-            document.getElementById('shop-address').value = '';
-            popupMessage.textContent = '';
-            popupMessage.className = 'message';
+            // Обновляем обработчики событий
+            document.getElementById('do-action-btn').addEventListener('click', saveShopProfile);
+            document.getElementById('close-popup-btn').addEventListener('click', closePopup);
         }
         
         // Закрыть попап
         function closePopup() {
             loginPopup.classList.add('hidden');
-            
-            // Восстанавливаем прокрутку
             const scrollY = document.body.style.top;
             document.body.classList.remove('popup-open');
             document.body.style.top = '';
@@ -628,7 +429,6 @@
             } catch (error) {
                 let errorMessage = error.message;
                 
-                // Уточняем сообщения об ошибках
                 if (error.code === 'auth/user-not-found') {
                     errorMessage = 'Пользователь с таким email не найден';
                 } else if (error.code === 'auth/wrong-password') {
@@ -642,13 +442,10 @@
             }
         }
         
-        // Функция регистрации
+        // Функция регистрации продавца
         async function register() {
             const email = document.getElementById('popup-email').value;
             const password = document.getElementById('popup-password').value;
-            const shopName = document.getElementById('shop-name').value;
-            const shopPhone = document.getElementById('shop-phone').value;
-            const shopAddress = document.getElementById('shop-address').value;
             
             popupMessage.textContent = '';
             popupMessage.className = 'message';
@@ -660,13 +457,6 @@
                 return;
             }
             
-            // Проверка для продавцов
-            if (selectedRole === 'seller' && (!shopName || !shopPhone || !shopAddress)) {
-                popupMessage.textContent = 'Заполните данные магазина!';
-                popupMessage.className = 'message error';
-                return;
-            }
-            
             try {
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
@@ -674,39 +464,25 @@
                 // Обновляем токен аутентификации
                 await user.getIdToken(true);
                 
-                // Сохраняем данные пользователя
+                // Сохраняем данные пользователя как продавца
                 await usersRef.doc(user.uid).set({
                     email,
-                    role: selectedRole,
+                    role: 'seller',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 
-                // Сохраняем данные магазина для продавцов
-                if (selectedRole === 'seller') {
-                    // Добавляем задержку для синхронизации
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                    await shopsRef.add({
-                        userId: user.uid,
-                        shopName,
-                        shopPhone,
-                        shopAddress,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-                
-                popupMessage.textContent = 'Регистрация успешна!';
+                popupMessage.textContent = 'Регистрация успешна! Заполните данные вашего магазина';
                 popupMessage.className = 'message success';
                 
-                // Закрываем попап через 2 секунды
+                // Показываем форму магазина через 2 секунды
                 setTimeout(() => {
                     closePopup();
+                    showShopProfilePopup();
                 }, 2000);
                 
             } catch (error) {
                 let errorMessage = error.message;
                 
-                // Уточняем сообщения об ошибках
                 if (error.code === 'auth/email-already-in-use') {
                     errorMessage = 'Этот email уже зарегистрирован';
                 } else if (error.code === 'auth/weak-password') {
@@ -727,13 +503,14 @@
             const shopAddress = document.getElementById('shop-address').value;
             const user = auth.currentUser;
 
-            popupMessage.textContent = '';
-            popupMessage.className = 'message';
+            const popupMsg = document.getElementById('popup-message');
+            popupMsg.textContent = '';
+            popupMsg.className = 'message';
             
             // Проверка заполненности полей
             if (!shopName || !shopPhone || !shopAddress) {
-                popupMessage.textContent = 'Заполните все поля!';
-                popupMessage.className = 'message error';
+                popupMsg.textContent = 'Заполните все поля!';
+                popupMsg.className = 'message error';
                 return;
             }
             
@@ -753,7 +530,7 @@
                         shopAddress,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    popupMessage.textContent = 'Данные магазина сохранены!';
+                    popupMsg.textContent = 'Данные магазина сохранены!';
                 } else {
                     // Обновляем первый найденный профиль
                     const shopDoc = shopQuery.docs[0];
@@ -763,10 +540,10 @@
                         shopAddress,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    popupMessage.textContent = 'Данные магазина обновлены!';
+                    popupMsg.textContent = 'Данные магазина обновлены!';
                 }
                 
-                popupMessage.className = 'message success';
+                popupMsg.className = 'message success';
                 
                 // Закрываем попап через 2 секунды
                 setTimeout(() => {
@@ -776,107 +553,16 @@
             } catch (error) {
                 let errorMessage = error.message;
                 
-                // Специальная обработка ошибки разрешений
                 if (error.code === 'permission-denied') {
                     errorMessage = 'Ошибка прав доступа. Проверьте правила Firestore';
                 }
                 
-                popupMessage.textContent = `Ошибка: ${errorMessage}`;
-                popupMessage.className = 'message error';
-                
-                console.error("Ошибка сохранения профиля:", error);
+                popupMsg.textContent = `Ошибка: ${errorMessage}`;
+                popupMsg.className = 'message error';
             }
         }
         
-        // Создание запроса покупателем
-        document.getElementById('create-request-btn').addEventListener('click', createRequest);
-        
-        async function createRequest() {
-            const carBrand = document.getElementById('car-brand').value;
-            const carModel = document.getElementById('car-model').value;
-            const partName = document.getElementById('part-name').value;
-            const buyerPhone = document.getElementById('buyer-phone').value;
-            
-            const requestMessage = document.getElementById('request-message');
-            requestMessage.textContent = '';
-            requestMessage.className = 'message';
-            
-            // Проверка обязательных полей
-            if (!carBrand || !carModel || !partName || !buyerPhone) {
-                requestMessage.textContent = 'Заполните обязательные поля!';
-                requestMessage.className = 'message error';
-                return;
-            }
-            
-            // Проверка формата телефона
-            const phoneRegex = /^\+?[0-9]{10,15}$/;
-            const cleanPhone = buyerPhone.replace(/[^\d+]/g, '');
-            
-            if (!phoneRegex.test(cleanPhone)) {
-                requestMessage.textContent = 'Введите корректный номер телефона';
-                requestMessage.className = 'message error';
-                return;
-            }
-            
-            try {
-                const user = auth.currentUser;
-                if (!user) {
-                    requestMessage.textContent = 'Для создания запроса необходимо войти в систему';
-                    requestMessage.className = 'message error';
-                    showPopup('login');
-                    return;
-                }
-                
-                // Обновляем токен аутентификации
-                await user.getIdToken(true);
-                
-                const requestData = {
-                    carBrand,
-                    carModel,
-                    carYear: document.getElementById('car-year').value || '',
-                    partName,
-                    details: document.getElementById('part-details').value || '',
-                    buyerPhone: cleanPhone,
-                    desiredPrice: document.getElementById('buyer-price').value || 0,
-                    buyerId: user.uid,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: "active"
-                };
-                
-                // Сохраняем запрос
-                await requestsRef.add(requestData);
-                
-                requestMessage.textContent = 'Ваш запрос отправлен продавцам!';
-                requestMessage.className = 'message success';
-                
-                // Очищаем форму
-                document.getElementById('car-brand').value = '';
-                document.getElementById('car-model').value = '';
-                document.getElementById('car-year').value = '';
-                document.getElementById('part-name').value = '';
-                document.getElementById('part-details').value = '';
-                document.getElementById('buyer-phone').value = '';
-                document.getElementById('buyer-price').value = '';
-                
-                // Обновляем список запросов
-                loadPublicRequests();
-                
-            } catch (error) {
-                let errorMessage = error.message;
-                
-                // Специальная обработка ошибки разрешений
-                if (error.code === 'permission-denied') {
-                    errorMessage = 'Ошибка прав доступа. Проверьте правила Firestore';
-                }
-                
-                requestMessage.textContent = `Ошибка: ${errorMessage}`;
-                requestMessage.className = 'message error';
-                
-                console.error("Ошибка создания запроса:", error);
-            }
-        }
-        
-        // Улучшенная функция загрузки публичных запросов
+        // Функция загрузки публичных запросов
         async function loadPublicRequests() {
             const list = document.getElementById('public-requests-list');
             list.innerHTML = '<p>Загрузка запросов...</p>';
@@ -891,7 +577,6 @@
                         .limit(10)
                         .get();
                 } catch (error) {
-                    // Если ошибка индексации, делаем простой запрос
                     if (error.code === 'failed-precondition') {
                         snapshot = await requestsRef
                             .where("status", "==", "active")
@@ -944,7 +629,7 @@
                         <div class="card-title">${request.partName || 'Без названия'}</div>
                         <div class="card-meta">
                             <span>${requestDate}</span>
-                            <span>Телефон: ${request.buyerPhone || 'не указан'}</span>
+                            <span>Телефон покупателя: ${request.buyerPhone || 'не указан'}</span>
                         </div>
                         <div class="card-details">
                             <div class="detail-item">
@@ -1030,14 +715,7 @@
             const user = auth.currentUser;
             if (!user) {
                 alert('Для размещения предложения войдите в систему!');
-                showPopup('login');
-                return;
-            }
-            
-            // Проверяем, является ли пользователь продавцом
-            const userDoc = await usersRef.doc(user.uid).get();
-            if (!userDoc.exists || userDoc.data().role !== 'seller') {
-                alert('Только продавцы могут делать предложения!');
+                showPopup();
                 return;
             }
             
@@ -1080,7 +758,6 @@
             } catch (error) {
                 let errorMessage = error.message;
                 
-                // Специальная обработка ошибки разрешений
                 if (error.code === 'permission-denied') {
                     errorMessage = 'Ошибка прав доступа. Проверьте правила Firestore';
                 }
