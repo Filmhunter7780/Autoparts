@@ -407,7 +407,8 @@
                 </div>
                 <div class="form-group">
                     <label for="buyer-price">Желаемая цена (тенге)</label>
-                    <input type="number" id="buyer-price" placeholder="Например: 25000">
+                    <!-- Изменено на text с inputmode=numeric -->
+                    <input type="text" inputmode="numeric" id="buyer-price" placeholder="Например: 25000">
                 </div>
             </div>
             
@@ -541,6 +542,12 @@
             // Назначение обработчиков для форматирования телефона
             document.getElementById('buyer-phone').addEventListener('input', formatPhone);
             document.getElementById('view-phone').addEventListener('input', formatPhone);
+            
+            // Обработчик для поля желаемой цены - разрешаем только цифры
+            document.getElementById('buyer-price').addEventListener('input', function(e) {
+                // Удаляем все нецифровые символы
+                this.value = this.value.replace(/\D/g, '');
+            });
         });
 
         // Функция форматирования номера телефона
@@ -999,6 +1006,10 @@
             }
             
             try {
+                // Получаем числовое значение цены
+                const priceValue = document.getElementById('buyer-price').value;
+                const desiredPrice = priceValue ? parseInt(priceValue) : 0;
+                
                 const requestData = {
                     carBrand,
                     carModel,
@@ -1006,7 +1017,7 @@
                     partName,
                     details: document.getElementById('part-details').value || '',
                     buyerPhone,
-                    desiredPrice: document.getElementById('buyer-price').value || 0,
+                    desiredPrice,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     status: "active"
                 };
