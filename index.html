@@ -8,7 +8,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
-        /* Все стили остаются без изменений */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -154,6 +153,7 @@
             border-radius: 8px;
             margin-bottom: 1rem;
             border-left: 4px solid var(--secondary);
+            overflow: hidden; /* Предотвращаем выход за границы */
         }
         
         .card-title {
@@ -161,6 +161,7 @@
             font-weight: bold;
             margin-bottom: 0.5rem;
             color: var(--primary);
+            word-wrap: break-word; /* Перенос длинных слов */
         }
         
         .card-meta {
@@ -169,20 +170,35 @@
             color: var(--gray);
             font-size: 0.9rem;
             margin-bottom: 1rem;
+            flex-wrap: wrap; /* Разрешаем перенос на мобильных */
+        }
+        
+        .card-meta > span {
+            margin-bottom: 5px; /* Отступ между элементами при переносе */
         }
         
         .card-details {
             margin-bottom: 1rem;
+            word-wrap: break-word; /* Перенос длинных слов */
         }
         
         .detail-item {
             margin-bottom: 0.5rem;
             display: flex;
+            flex-wrap: wrap; /* Разрешаем перенос */
         }
         
         .detail-label {
             font-weight: 500;
             min-width: 120px;
+            max-width: 30%; /* Ограничиваем ширину метки */
+            word-break: break-word; /* Перенос длинных слов в метке */
+        }
+        
+        .detail-item > span:not(.detail-label) {
+            flex: 1;
+            min-width: 200px; /* Минимальная ширина для содержимого */
+            word-break: break-word; /* Перенос длинных слов */
         }
         
         .offers-list {
@@ -197,11 +213,13 @@
             border-radius: 4px;
             margin-bottom: 1rem;
             border: 1px solid #eee;
+            word-wrap: break-word; /* Перенос длинных слов */
         }
         
         .seller-info {
             font-weight: bold;
             margin-bottom: 0.5rem;
+            word-wrap: break-word; /* Перенос длинных слов */
         }
         
         .offer-price {
@@ -216,6 +234,7 @@
             margin: 1rem 0;
             border-radius: 4px;
             text-align: center;
+            word-wrap: break-word; /* Перенос длинных слов */
         }
         
         .error {
@@ -296,10 +315,28 @@
             .role-selector {
                 flex-direction: column;
             }
+            
+            .detail-label {
+                min-width: 100%;
+                margin-bottom: 5px;
+            }
+            
+            .card-meta {
+                flex-direction: column;
+            }
+            
+            .detail-item {
+                flex-direction: column;
+            }
+            
+            .detail-item > span:not(.detail-label) {
+                min-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Остальная HTML структура без изменений -->
     <header>
         <div class="logo">AutoParts Market</div>
         <div class="auth-buttons">
