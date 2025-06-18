@@ -317,6 +317,33 @@
             margin-bottom: 1.5rem;
         }
         
+        .autocomplete-container {
+            position: relative;
+        }
+        
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        
+        .autocomplete-item:hover {
+            background-color: #f0f0f0;
+        }
+        
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -378,17 +405,19 @@
             <p>Заполните форму, и продавцы предложат вам нужную запчасть</p>
             
             <div class="form-grid">
-                <div class="form-group">
+                <div class="form-group autocomplete-container">
                     <label for="car-brand">Марка автомобиля *</label>
-                    <input type="text" id="car-brand" placeholder="Например: Toyota">
+                    <input type="text" id="car-brand" placeholder="Начните вводить марку (например: Toyota)">
+                    <div id="brand-results" class="autocomplete-results hidden"></div>
                 </div>
-                <div class="form-group">
+                <div class="form-group autocomplete-container">
                     <label for="car-model">Модель *</label>
-                    <input type="text" id="car-model" placeholder="Например: Camry">
+                    <input type="text" id="car-model" placeholder="Начните вводить модель (например: Camry)" disabled>
+                    <div id="model-results" class="autocomplete-results hidden"></div>
                 </div>
                 <div class="form-group">
                     <label for="car-year">Год выпуска</label>
-                    <input type="number" id="car-year" placeholder="Например: 2018">
+                    <input type="number" id="car-year" placeholder="Например: 2018" min="1900" max="2099" maxlength="4">
                 </div>
                 <div class="form-group">
                     <label for="part-name">Название запчасти *</label>
@@ -398,7 +427,7 @@
             
             <div class="form-group">
                 <label for="part-details">Дополнительные детали</label>
-                <textarea id="part-details" placeholder="Опишите что вам нужно, VIN код или особенности"></textarea>
+                <textarea id="part-details" placeholder="Опишите что вам нужно, VIN код или особенности" maxlength="500"></textarea>
             </div>
             
             <div class="form-grid">
@@ -408,7 +437,6 @@
                 </div>
                 <div class="form-group">
                     <label for="buyer-price">Желаемая цена (тенге)</label>
-                    <!-- Добавлены атрибуты для предотвращения автозаполнения -->
                     <input type="text" 
                            inputmode="numeric" 
                            id="buyer-price" 
@@ -538,6 +566,16 @@
         const backToRequestForm = document.getElementById('back-to-request-form');
         const registerBtn2 = document.getElementById('register-btn2');
         const homeLink = document.getElementById('home-link');
+        const carBrandInput = document.getElementById('car-brand');
+        const carModelInput = document.getElementById('car-model');
+        const carYearInput = document.getElementById('car-year');
+        const brandResults = document.getElementById('brand-results');
+        const modelResults = document.getElementById('model-results');
+        
+        // Переменные для автодополнения
+        let carBrands = [];
+        let carModels = [];
+        let selectedBrand = '';
         
         // Текущий режим попапа
         let popupMode = 'register';
@@ -549,24 +587,46 @@
             // Назначение обработчиков для форматирования телефона
             document.getElementById('buyer-phone').addEventListener('input', formatPhone);
             document.getElementById('view-phone').addEventListener('input', formatPhone);
+            document.getElementById('shop-phone')?.addEventListener('input', formatPhone);
             
             // Обработчик для поля желаемой цены - разрешаем только цифры
             const priceInput = document.getElementById('buyer-price');
             priceInput.addEventListener('input', function(e) {
-                // Удаляем все нецифровые символы
                 this.value = this.value.replace(/\D/g, '');
             });
             
-            // Дополнительные меры против автозаполнения
-            priceInput.autocomplete = 'off';
-            priceInput.setAttribute('autocomplete', 'off');
-            priceInput.setAttribute('aria-autocomplete', 'none');
+            // Ограничение года выпуска
+            carYearInput.addEventListener('input', function() {
+                if (this.value.length > 4) {
+                    this.value = this.value.slice(0, 4);
+                }
+                
+                // Проверка корректности года
+                const currentYear = new Date().getFullYear();
+                if (this.value && (this.value < 1900 || this.value > currentYear + 1)) {
+                    this.setCustomValidity(`Год должен быть между 1900 и ${currentYear + 1}`);
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+            
+            // Загрузка списка марок автомобилей
+            loadCarBrands();
+            
+            // Обработчики автодополнения
+            carBrandInput.addEventListener('input', handleBrandInput);
+            carModelInput.addEventListener('input', handleModelInput);
         });
 
         // Функция форматирования номера телефона
         function formatPhone(e) {
             const input = e.target;
             let value = input.value.replace(/\D/g, '');
+            
+            // Если первая цифра 7, меняем на 8
+            if (value.startsWith('7')) {
+                value = '8' + value.substring(1);
+            }
             
             // Ограничение длины
             if (value.length > 11) value = value.substring(0, 11);
@@ -940,6 +1000,9 @@
                 return;
             }
             
+            // Очистка номера телефона
+            const cleanShopPhone = shopPhone.replace(/\D/g, '');
+            
             try {
                 // Обновляем токен аутентификации
                 await user.getIdToken(true);
@@ -952,7 +1015,7 @@
                     await shopsRef.add({
                         userId: user.uid,
                         shopName,
-                        shopPhone,
+                        shopPhone: cleanShopPhone,
                         shopAddress,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -962,7 +1025,7 @@
                     const shopDoc = shopQuery.docs[0];
                     await shopDoc.ref.update({
                         shopName,
-                        shopPhone,
+                        shopPhone: cleanShopPhone,
                         shopAddress,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -1044,11 +1107,15 @@
                 // Очищаем форму
                 document.getElementById('car-brand').value = '';
                 document.getElementById('car-model').value = '';
+                document.getElementById('car-model').disabled = true;
                 document.getElementById('car-year').value = '';
                 document.getElementById('part-name').value = '';
                 document.getElementById('part-details').value = '';
                 document.getElementById('buyer-phone').value = '';
                 document.getElementById('buyer-price').value = '';
+                
+                // Отправляем уведомление продавцам
+                notifySellers();
                 
             } catch (error) {
                 let errorMessage = error.message;
@@ -1256,11 +1323,7 @@
                         .where("requestId", "in", requestIds)
                         .get();
                 } catch (error) {
-                    // Если возникает ошибка, например, из-за слишком большого количества requestIds
-                    // то делаем по одному запросу на каждый requestId
-                    console.error("Ошибка при загрузке предложений:", error);
-                    // Вместо этого можно загружать предложения для каждого запроса отдельно
-                    // Но для простоты пока просто не грузим предложения
+                    // Ошибка при загрузке предложений
                     offersQuery = { empty: true, forEach: () => {} };
                 }
                 
@@ -1276,14 +1339,19 @@
                     });
                 }
                 
-                // Проверим, является ли текущий пользователь продавцом и имеет ли профиль магазина
-                let hasShopProfile = false;
+                // Получаем номер телефона продавца
+                let sellerPhone = '';
                 const user = auth.currentUser;
                 if (user) {
-                    // Проверяем наличие профиля магазина
                     const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
-                    hasShopProfile = !shopQuery.empty;
+                    if (!shopQuery.empty) {
+                        const shopData = shopQuery.docs[0].data();
+                        sellerPhone = shopData.shopPhone || '';
+                    }
                 }
+                
+                // Проверим, является ли текущий пользователь продавцом и имеет ли профиль магазина
+                let hasShopProfile = !!sellerPhone;
                 
                 // Очищаем список
                 list.innerHTML = '';
@@ -1291,6 +1359,12 @@
                 // Создаем карточки запросов
                 requestsDocs.forEach(doc => {
                     const request = doc.data();
+                    
+                    // Скрываем запросы, созданные продавцом (защита от фейковых запросов)
+                    if (request.buyerPhone === sellerPhone) {
+                        return;
+                    }
+                    
                     const requestDate = request.createdAt ? 
                         new Date(request.createdAt.toDate()).toLocaleString() : 'недавно';
                     
@@ -1382,11 +1456,6 @@
                     <div class="message error">
                         <p>Ошибка загрузки запросов: ${error.message}</p>
                         <p>Пожалуйста, попробуйте перезагрузить страницу</p>
-                        ${error.code === 'failed-precondition' 
-                            ? `<p><a href="https://console.firebase.google.com/v1/r/project/autoparts-d08ea/firestore/indexes?create_composite=Ck5wcm9qZWN0cy9hdXRvcGFydHMtZDA4ZWEvZGF0YWJhc2VzLyhkZWZhdWx0KS9jb2xsZWN0aW9uR3JvdXBzL29mZmVycy9pbmRleGVzL18QARoMCghzZWxsZXJJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI" target="_blank">
-                                    Создать индекс сейчас
-                                </a></p>` 
-                            : ''}
                     </div>
                 `;
             }
@@ -1538,6 +1607,132 @@
                 alert(`Ошибка: ${errorMessage}`);
             }
         };
+        
+        // Уведомление продавцов о новом запросе
+        async function notifySellers() {
+            try {
+                console.log("Уведомление продавцов о новом запросе");
+                
+                // Здесь должна быть логика отправки уведомлений через FCM
+                // В реальном приложении мы бы использовали Firebase Cloud Messaging
+                
+                // Для демонстрации просто логируем
+                const sellers = await usersRef.where("role", "==", "seller").get();
+                sellers.forEach(seller => {
+                    console.log(`Уведомление отправлено продавцу: ${seller.id}`);
+                });
+            } catch (error) {
+                console.error("Ошибка при отправке уведомлений:", error);
+            }
+        }
+        
+        // Загрузка списка марок автомобилей
+        async function loadCarBrands() {
+            try {
+                const response = await fetch('https://vpic.nhtsa.dot.gov/api/vehicles/getallmakes?format=json');
+                const data = await response.json();
+                carBrands = data.Results.map(make => make.MakeName);
+                carBrands.sort();
+            } catch (error) {
+                console.error('Ошибка загрузки марок автомобилей:', error);
+                // Резервный список
+                carBrands = ['Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan', 'Hyundai', 'Kia', 'Volkswagen', 'BMW', 'Mercedes-Benz'];
+            }
+        }
+        
+        // Обработка ввода марки автомобиля
+        function handleBrandInput() {
+            const value = carBrandInput.value.toLowerCase();
+            brandResults.innerHTML = '';
+            
+            if (value.length < 2) {
+                brandResults.classList.add('hidden');
+                carModelInput.disabled = true;
+                return;
+            }
+            
+            const filteredBrands = carBrands.filter(brand => 
+                brand.toLowerCase().includes(value)
+            ).slice(0, 10);
+            
+            if (filteredBrands.length > 0) {
+                filteredBrands.forEach(brand => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.textContent = brand;
+                    item.addEventListener('click', () => {
+                        carBrandInput.value = brand;
+                        brandResults.classList.add('hidden');
+                        selectedBrand = brand;
+                        carModelInput.disabled = false;
+                        loadCarModels(brand);
+                    });
+                    brandResults.appendChild(item);
+                });
+                brandResults.classList.remove('hidden');
+            } else {
+                brandResults.classList.add('hidden');
+            }
+        }
+        
+        // Загрузка моделей для выбранной марки
+        async function loadCarModels(brand) {
+            try {
+                const brandEncoded = encodeURIComponent(brand);
+                const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/${brandEncoded}?format=json`);
+                const data = await response.json();
+                carModels = data.Results.map(model => model.Model_Name);
+                carModels.sort();
+            } catch (error) {
+                console.error(`Ошибка загрузки моделей для ${brand}:`, error);
+                // Резервный список
+                carModels = [
+                    'Camry', 'Corolla', 'RAV4', 'Highlander', 'Prius', 
+                    'Civic', 'Accord', 'CR-V', 'Pilot', 'Fit'
+                ];
+            }
+        }
+        
+        // Обработка ввода модели автомобиля
+        function handleModelInput() {
+            const value = carModelInput.value.toLowerCase();
+            modelResults.innerHTML = '';
+            
+            if (value.length < 2) {
+                modelResults.classList.add('hidden');
+                return;
+            }
+            
+            const filteredModels = carModels.filter(model => 
+                model.toLowerCase().includes(value)
+            ).slice(0, 10);
+            
+            if (filteredModels.length > 0) {
+                filteredModels.forEach(model => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.textContent = model;
+                    item.addEventListener('click', () => {
+                        carModelInput.value = model;
+                        modelResults.classList.add('hidden');
+                    });
+                    modelResults.appendChild(item);
+                });
+                modelResults.classList.remove('hidden');
+            } else {
+                modelResults.classList.add('hidden');
+            }
+        }
+        
+        // Скрытие выпадающих списков при клике вне их
+        document.addEventListener('click', (e) => {
+            if (!carBrandInput.contains(e.target) && !brandResults.contains(e.target)) {
+                brandResults.classList.add('hidden');
+            }
+            if (!carModelInput.contains(e.target) && !modelResults.contains(e.target)) {
+                modelResults.classList.add('hidden');
+            }
+        });
     </script>
 </body>
 </html>
