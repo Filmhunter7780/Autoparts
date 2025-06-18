@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
+        /* Стили остаются без изменений */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -423,6 +424,7 @@
         const requestsRef = db.collection("requests");
         const offersRef = db.collection("offers");
         const usersRef = db.collection("users");
+        const shopsRef = db.collection("shops");
         
         // Элементы DOM
         const loginBtn = document.getElementById('login-btn');
@@ -452,6 +454,9 @@
                 loginBtn.classList.add('hidden');
                 registerBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
+                
+                // Проверяем, заполнил ли продавец данные магазина
+                checkSellerProfile(user);
             } else {
                 // Пользователь вышел
                 loginBtn.classList.remove('hidden');
@@ -462,6 +467,18 @@
             // Всегда загружаем публичные запросы
             loadPublicRequests();
         });
+        
+        // Проверить профиль продавца
+        async function checkSellerProfile(user) {
+            const userDoc = await usersRef.doc(user.uid).get();
+            if (userDoc.exists && userDoc.data().role === 'seller') {
+                const shopDoc = await shopsRef.doc(user.uid).get();
+                if (!shopDoc.exists) {
+                    alert('Заполните данные вашего магазина в профиле!');
+                    showPopup('profile');
+                }
+            }
+        }
         
         // Обработчики кнопок
         loginBtn.addEventListener('click', () => {
@@ -622,7 +639,7 @@
                 
                 // Сохраняем данные магазина для продавцов
                 if (selectedRole === 'seller') {
-                    await db.collection('shops').doc(user.uid).set({
+                    await shopsRef.doc(user.uid).set({
                         userId: user.uid,
                         shopName,
                         shopPhone,
@@ -691,6 +708,14 @@
             }
             
             try {
+                const user = auth.currentUser;
+                if (!user) {
+                    requestMessage.textContent = 'Для создания запроса необходимо войти в систему';
+                    requestMessage.className = 'message error';
+                    showPopup('login');
+                    return;
+                }
+                
                 const requestData = {
                     carBrand,
                     carModel,
@@ -699,15 +724,10 @@
                     details: document.getElementById('part-details').value || '',
                     buyerPhone: cleanPhone,
                     desiredPrice: document.getElementById('buyer-price').value || 0,
+                    buyerId: user.uid, // Всегда привязываем к пользователю
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     status: "active"
                 };
-                
-                // Если покупатель авторизован, добавляем его ID
-                const user = auth.currentUser;
-                if (user) {
-                    requestData.buyerId = user.uid;
-                }
                 
                 // Сохраняем запрос
                 await requestsRef.add(requestData);
@@ -739,23 +759,17 @@
             list.innerHTML = '<p>Загрузка запросов...</p>';
             
             try {
-                console.log("Начало загрузки запросов...");
-                
                 // Запрос активных запросов
                 let snapshot;
                 try {
-                    // Пробуем запрос с сортировкой
                     snapshot = await requestsRef
                         .where("status", "==", "active")
                         .orderBy("createdAt", "desc")
                         .limit(10)
                         .get();
                 } catch (error) {
-                    console.error("Ошибка при запросе активных запросов:", error);
-                    
-                    // Если ошибка индексации, пробуем без сортировки
+                    // Если ошибка индексации, делаем простой запрос
                     if (error.code === 'failed-precondition') {
-                        console.log("Попытка загрузить без сортировки...");
                         snapshot = await requestsRef
                             .where("status", "==", "active")
                             .limit(10)
@@ -765,41 +779,22 @@
                     }
                 }
                 
-                console.log(`Получено ${snapshot.docs.length} запросов`);
-                
                 if (snapshot.empty) {
                     list.innerHTML = '<p>Нет активных запросов</p>';
-                    console.log("Нет активных запросов для отображения");
                     return;
                 }
                 
                 list.innerHTML = '';
                 
-                // Получим ID всех запросов
+                // Загрузка всех предложений одним запросом
                 const requestIds = snapshot.docs.map(doc => doc.id);
-                console.log("ID запросов:", requestIds);
+                const offersQuery = await offersRef
+                    .where("requestId", "in", requestIds)
+                    .get();
                 
-                // Загрузим все предложения для этих запросов одним запросом
-                let offersQuery;
-                try {
-                    // Firestore позволяет использовать "in" для до 10 элементов
-                    if (requestIds.length > 0) {
-                        offersQuery = await offersRef
-                            .where("requestId", "in", requestIds)
-                            .get();
-                    } else {
-                        offersQuery = { empty: true, docs: [] };
-                    }
-                } catch (error) {
-                    console.error("Ошибка при загрузке предложений:", error);
-                    offersQuery = { empty: true, docs: [] };
-                }
-                
-                console.log(`Получено ${offersQuery.docs.length} предложений`);
-                
-                // Группируем предложения по ID запроса
+                // Группировка предложений по ID запроса
                 const offersByRequest = {};
-                offersQuery.docs.forEach(offerDoc => {
+                offersQuery.forEach(offerDoc => {
                     const offer = offerDoc.data();
                     if (!offersByRequest[offer.requestId]) {
                         offersByRequest[offer.requestId] = [];
@@ -810,127 +805,97 @@
                 // Проверим, является ли текущий пользователь продавцом
                 let isSeller = false;
                 if (auth.currentUser) {
-                    try {
-                        const userDoc = await usersRef.doc(auth.currentUser.uid).get();
-                        if (userDoc.exists && userDoc.data().role === 'seller') {
-                            isSeller = true;
-                        }
-                    } catch (error) {
-                        console.error("Ошибка при проверке роли пользователя:", error);
-                    }
+                    const userDoc = await usersRef.doc(auth.currentUser.uid).get();
+                    isSeller = userDoc.exists && userDoc.data().role === 'seller';
                 }
                 
-                // Создаем карточки для каждого запроса
-                for (const doc of snapshot.docs) {
-                    try {
-                        const request = doc.data();
-                        console.log("Обработка запроса:", request.partName);
-                        
-                        // Форматируем дату
-                        const requestDate = request.createdAt && request.createdAt.toDate 
-                            ? request.createdAt.toDate().toLocaleString() 
-                            : 'недавно';
-                        
-                        // Создаем карточку запроса
-                        const requestCard = document.createElement('div');
-                        requestCard.className = 'request-card';
-                        requestCard.innerHTML = `
-                            <div class="card-title">${request.partName || 'Без названия'}</div>
-                            <div class="card-meta">
-                                <span>${requestDate}</span>
-                                <span>Телефон: ${request.buyerPhone || 'не указан'}</span>
+                // Создаем карточки запросов
+                snapshot.docs.forEach(doc => {
+                    const request = doc.data();
+                    const requestDate = request.createdAt ? 
+                        new Date(request.createdAt.toDate()).toLocaleString() : 'недавно';
+                    
+                    const requestCard = document.createElement('div');
+                    requestCard.className = 'request-card';
+                    requestCard.innerHTML = `
+                        <div class="card-title">${request.partName || 'Без названия'}</div>
+                        <div class="card-meta">
+                            <span>${requestDate}</span>
+                            <span>Телефон: ${request.buyerPhone || 'не указан'}</span>
+                        </div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Автомобиль:</span>
+                                <span>${request.carBrand || ''} ${request.carModel || ''} ${request.carYear || ''}</span>
                             </div>
-                            <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Описание:</span>
+                                <span>${request.details || 'Нет описания'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Желаемая цена:</span>
+                                <span>${request.desiredPrice || 'не указана'} ₸</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Добавляем предложения
+                    const offersList = document.createElement('div');
+                    offersList.className = 'offers-list';
+                    
+                    const offers = offersByRequest[doc.id] || [];
+                    if (offers.length === 0) {
+                        offersList.innerHTML = '<p>Пока нет предложений</p>';
+                    } else {
+                        offersList.innerHTML = '<h4>Предложения продавцов:</h4>';
+                        offers.forEach(offer => {
+                            const offerDate = offer.createdAt ? 
+                                new Date(offer.createdAt.toDate()).toLocaleString() : 'недавно';
+                            
+                            const offerCard = document.createElement('div');
+                            offerCard.className = 'offer-card';
+                            offerCard.innerHTML = `
+                                <div class="seller-info">${offer.shopName || 'Магазин'}</div>
+                                <div class="offer-price">${offer.price || '0'} ₸</div>
                                 <div class="detail-item">
-                                    <span class="detail-label">Автомобиль:</span>
-                                    <span>${request.carBrand || ''} ${request.carModel || ''} ${request.carYear || ''}</span>
+                                    <span class="detail-label">Адрес:</span>
+                                    <span>${offer.shopAddress || 'не указан'}</span>
                                 </div>
                                 <div class="detail-item">
-                                    <span class="detail-label">Описание:</span>
-                                    <span>${request.details || 'Нет описания'}</span>
+                                    <span class="detail-label">Телефон:</span>
+                                    <span>${offer.shopPhone || 'не указан'}</span>
                                 </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Желаемая цена:</span>
-                                    <span>${request.desiredPrice || 'не указана'} ₸</span>
-                                </div>
+                                ${offer.comment ? `<p>Комментарий: ${offer.comment}</p>` : ''}
+                                <div class="card-meta">${offerDate}</div>
+                            `;
+                            
+                            offersList.appendChild(offerCard);
+                        });
+                    }
+                    
+                    // Форма для ответа продавца
+                    if (isSeller) {
+                        const offerForm = document.createElement('div');
+                        offerForm.className = 'offer-form';
+                        offerForm.innerHTML = `
+                            <div style="margin-top: 1rem;">
+                                <button class="btn btn-success" 
+                                        onclick="showOfferForm('${doc.id}')">
+                                    Предложить запчасть
+                                </button>
                             </div>
                         `;
-                        
-                        // Добавляем предложения для этого запроса
-                        const offersList = document.createElement('div');
-                        offersList.className = 'offers-list';
-                        
-                        const offers = offersByRequest[doc.id] || [];
-                        if (offers.length === 0) {
-                            offersList.innerHTML = '<p>Пока нет предложений</p>';
-                        } else {
-                            offersList.innerHTML = '<h4>Предложения продавцов:</h4>';
-                            
-                            for (const offer of offers) {
-                                try {
-                                    const offerDate = offer.createdAt && offer.createdAt.toDate 
-                                        ? offer.createdAt.toDate().toLocaleString() 
-                                        : 'недавно';
-                                    
-                                    const offerCard = document.createElement('div');
-                                    offerCard.className = 'offer-card';
-                                    offerCard.innerHTML = `
-                                        <div class="seller-info">${offer.shopName || 'Магазин'}</div>
-                                        <div class="offer-price">${offer.price || '0'} ₸</div>
-                                        <div class="detail-item">
-                                            <span class="detail-label">Адрес:</span>
-                                            <span>${offer.shopAddress || 'не указан'}</span>
-                                        </div>
-                                        <div class="detail-item">
-                                            <span class="detail-label">Телефон:</span>
-                                            <span>${offer.shopPhone || 'не указан'}</span>
-                                        </div>
-                                        ${offer.comment ? `<p>Комментарий: ${offer.comment}</p>` : ''}
-                                        <div class="card-meta">${offerDate}</div>
-                                    `;
-                                    
-                                    offersList.appendChild(offerCard);
-                                } catch (offerError) {
-                                    console.error("Ошибка при создании карточки предложения:", offerError);
-                                }
-                            }
-                        }
-                        
-                        // Добавляем кнопку для продавцов
-                        if (isSeller) {
-                            const offerForm = document.createElement('div');
-                            offerForm.className = 'offer-form';
-                            offerForm.innerHTML = `
-                                <div style="margin-top: 1rem;">
-                                    <button class="btn btn-success" 
-                                            onclick="showOfferForm('${doc.id}')">
-                                        Предложить запчасть
-                                    </button>
-                                </div>
-                            `;
-                            requestCard.appendChild(offerForm);
-                        }
-                        
-                        requestCard.appendChild(offersList);
-                        list.appendChild(requestCard);
-                        
-                    } catch (requestError) {
-                        console.error("Ошибка при обработке запроса:", requestError);
-                        const errorCard = document.createElement('div');
-                        errorCard.className = 'request-card';
-                        errorCard.innerHTML = `<p class="message error">Ошибка загрузки запроса</p>`;
-                        list.appendChild(errorCard);
+                        requestCard.appendChild(offerForm);
                     }
-                }
+                    
+                    requestCard.appendChild(offersList);
+                    list.appendChild(requestCard);
+                });
                 
-                console.log("Запросы успешно загружены и отображены");
-                
-            } catch (mainError) {
-                console.error("Критическая ошибка загрузки запросов:", mainError);
+            } catch (error) {
                 list.innerHTML = `
                     <div class="message error">
-                        <p>Ошибка загрузки запросов: ${mainError.message}</p>
-                        <p>Код ошибки: ${mainError.code || 'неизвестен'}</p>
+                        <p>Ошибка загрузки запросов: ${error.message}</p>
                         <p>Пожалуйста, попробуйте перезагрузить страницу</p>
                     </div>
                 `;
@@ -942,6 +907,7 @@
             const user = auth.currentUser;
             if (!user) {
                 alert('Для размещения предложения войдите в систему!');
+                showPopup('login');
                 return;
             }
             
@@ -953,7 +919,7 @@
             }
             
             // Получаем данные магазина
-            const shopDoc = await db.collection('shops').doc(user.uid).get();
+            const shopDoc = await shopsRef.doc(user.uid).get();
             if (!shopDoc.exists) {
                 alert('Заполните данные магазина в профиле!');
                 return;
