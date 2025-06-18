@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoParts Market - Площадка для автозапчастей</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --gray: #95a5a6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 0.6rem 1.2rem;
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+        }
+        
+        .btn-success:hover {
+            background-color: #219653;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+        
+        .section-title {
+            margin-bottom: 1.5rem;
+            color: var(--dark);
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--secondary);
+        }
+        
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--dark);
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .request-card {
+            background: var(--light);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+        
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card-details {
+            margin-bottom: 1rem;
+        }
+        
+        .detail-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            min-width: 120px;
+        }
+        
+        .offers-list {
+            margin-top: 1rem;
+            border-top: 1px solid #eee;
+            padding-top: 1rem;
+        }
+        
+        .offer-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border: 1px solid #eee;
+        }
+        
+        .seller-info {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .message {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .error {
+            background-color: #ffebee;
+            color: var(--danger);
+        }
+        
+        .success {
+            background-color: #e8f5e9;
+            color: var(--success);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab {
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid var(--secondary);
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .chat-messages {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .message-item {
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        
+        .message-buyer {
+            background-color: #e3f2fd;
+            margin-right: auto;
+        }
+        
+        .message-seller {
+            background-color: #e8f5e9;
+            margin-left: auto;
+        }
+        
+        .message-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .message-input input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        #login-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .popup-content {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .popup-content {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">AutoParts Market</div>
+        <div class="nav-buttons">
+            <button id="buyer-tab-btn" class="btn btn-outline">Покупателям</button>
+            <button id="seller-tab-btn" class="btn btn-outline">Продавцам</button>
+            <button id="login-btn" class="btn">Вход/Регистрация</button>
+            <button id="logout-btn" class="btn btn-danger hidden">Выйти</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Главная страница для покупателей -->
+        <div id="buyer-section">
+            <div class="section">
+                <h2 class="section-title">Найти автозапчасть</h2>
+                <p>Заполните форму, и продавцы сами предложат вам нужную запчасть</p>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="car-brand">Марка автомобиля *</label>
+                        <input type="text" id="car-brand" placeholder="Например: Toyota">
+                    </div>
+                    <div class="form-group">
+                        <label for="car-model">Модель *</label>
+                        <input type="text" id="car-model" placeholder="Например: Camry">
+                    </div>
+                    <div class="form-group">
+                        <label for="car-year">Год выпуска</label>
+                        <input type="number" id="car-year" placeholder="Например: 2018">
+                    </div>
+                    <div class="form-group">
+                        <label for="part-name">Название запчасти *</label>
+                        <input type="text" id="part-name" placeholder="Например: Тормозные колодки">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="part-details">Дополнительные детали</label>
+                    <textarea id="part-details" placeholder="Опишите что вам нужно, VIN код или особенности"></textarea>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="buyer-phone">Ваш телефон *</label>
+                        <input type="tel" id="buyer-phone" placeholder="+7 (777) 123-4567">
+                    </div>
+                    <div class="form-group">
+                        <label for="buyer-price">Желаемая цена (тенге)</label>
+                        <input type="number" id="buyer-price" placeholder="Например: 25000">
+                    </div>
+                </div>
+                
+                <button id="create-request-btn" class="btn btn-success">Отправить запрос продавцам</button>
+                <div id="request-message" class="message"></div>
+            </div>
+            
+            <!-- Для авторизованных покупателей -->
+            <div id="buyer-requests" class="section hidden">
+                <h2 class="section-title">Ваши запросы</h2>
+                <div id="requests-list"></div>
+            </div>
+        </div>
+        
+        <!-- Страница для продавцов -->
+        <div id="seller-section" class="hidden">
+            <div class="tabs">
+                <div class="tab active" data-tab="requests">Запросы покупателей</div>
+                <div class="tab" data-tab="profile">Мой магазин</div>
+                <div class="tab" data-tab="messages">Сообщения</div>
+            </div>
+            
+            <div class="tab-content active" id="requests-tab">
+                <div class="section">
+                    <h2 class="section-title">Активные запросы</h2>
+                    <div id="seller-requests-list"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="profile-tab">
+                <div class="section">
+                    <h2 class="section-title">Профиль магазина</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="shop-name">Название магазина *</label>
+                            <input type="text" id="shop-name" placeholder="Например: ИП Автозапчасти">
+                        </div>
+                        <div class="form-group">
+                            <label for="shop-phone">Телефон *</label>
+                            <input type="tel" id="shop-phone" placeholder="+7 (777) 765-4321">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="shop-address">Адрес магазина *</label>
+                        <input type="text" id="shop-address" placeholder="Улица, дом, город">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="shop-description">Описание магазина</label>
+                        <textarea id="shop-description" placeholder="Чем занимаетесь, специализация"></textarea>
+                    </div>
+                    
+                    <button id="save-shop-btn" class="btn btn-success">Сохранить профиль</button>
+                    <div id="shop-message" class="message"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="messages-tab">
+                <div class="section">
+                    <h2 class="section-title">Сообщения от покупателей</h2>
+                    <div id="seller-messages-list"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Попап авторизации -->
+        <div id="login-popup" class="hidden">
+            <div class="popup-content">
+                <h2 class="section-title">Вход для продавцов</h2>
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" placeholder="Ваш email">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Пароль</label>
+                    <input type="password" id="login-password" placeholder="Ваш пароль">
+                </div>
+                <div id="login-message" class="message"></div>
+                <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                    <button id="do-login-btn" class="btn">Войти</button>
+                    <button id="do-register-btn" class="btn btn-success">Регистрация</button>
+                    <button id="close-login-btn" class="btn btn-danger">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Конфигурация Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD2Sfe5fYXf4u4qgJKdqtLSh1dJKo4vkJA",
+            authDomain: "autoparts-d08ea.firebaseapp.com",
+            projectId: "autoparts-d08ea",
+            storageBucket: "autoparts-d08ea.firebasestorage.app",
+            messagingSenderId: "536268004529",
+            appId: "1:536268004529:web:0a8629bd11899679709690"
+        };
+
+        // Инициализация Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        // Ссылки на коллекции
+        const requestsRef = db.collection("requests");
+        const offersRef = db.collection("offers");
+        const shopsRef = db.collection("shops");
+        const messagesRef = db.collection("messages");
+        
+        // Элементы DOM
+        const buyerSection = document.getElementById('buyer-section');
+        const sellerSection = document.getElementById('seller-section');
+        const loginPopup = document.getElementById('login-popup');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const closeLoginBtn = document.getElementById('close-login-btn');
+        const buyerTabBtn = document.getElementById('buyer-tab-btn');
+        const sellerTabBtn = document.getElementById('seller-tab-btn');
+        
+        // Проверка состояния аутентификации
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Пользователь вошел (продавец)
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+                buyerSection.classList.add('hidden');
+                sellerSection.classList.remove('hidden');
+                loginPopup.classList.add('hidden'); // Гарантированно скрываем попап
+                loadSellerRequests();
+                loadShopProfile(user.uid);
+            } else {
+                // Пользователь вышел
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+                buyerSection.classList.remove('hidden');
+                sellerSection.classList.add('hidden');
+            }
+        });
+        
+        // Переключение вкладок
+        buyerTabBtn.addEventListener('click', () => {
+            buyerSection.classList.remove('hidden');
+            sellerSection.classList.add('hidden');
+        });
+        
+        sellerTabBtn.addEventListener('click', () => {
+            if (auth.currentUser) {
+                buyerSection.classList.add('hidden');
+                sellerSection.classList.remove('hidden');
+            } else {
+                loginPopup.classList.remove('hidden');
+            }
+        });
+        
+        // Управление попапом
+        loginBtn.addEventListener('click', () => {
+            loginPopup.classList.remove('hidden');
+        });
+        
+        closeLoginBtn.addEventListener('click', () => {
+            loginPopup.classList.add('hidden');
+        });
+        
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
+        
+        // Создание запроса покупателем
+        document.getElementById('create-request-btn').addEventListener('click', createRequest);
+        
+        async function createRequest() {
+            const carBrand = document.getElementById('car-brand').value;
+            const carModel = document.getElementById('car-model').value;
+            const partName = document.getElementById('part-name').value;
+            const buyerPhone = document.getElementById('buyer-phone').value;
+            
+            const requestMessage = document.getElementById('request-message');
+            requestMessage.textContent = '';
+            requestMessage.className = 'message';
+            
+            // Проверка обязательных полей
+            if (!carBrand || !carModel || !partName || !buyerPhone) {
+                requestMessage.textContent = 'Заполните обязательные поля!';
+                requestMessage.className = 'message error';
+                return;
+            }
+            
+            try {
+                const requestData = {
+                    carBrand,
+                    carModel,
+                    carYear: document.getElementById('car-year').value || '',
+                    partName,
+                    details: document.getElementById('part-details').value || '',
+                    buyerPhone,
+                    desiredPrice: document.getElementById('buyer-price').value || 0,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: "active"
+                };
+                
+                // Если покупатель авторизован, добавляем его ID
+                const user = auth.currentUser;
+                if (user) {
+                    requestData.buyerId = user.uid;
+                }
+                
+                // Сохраняем запрос
+                const docRef = await requestsRef.add(requestData);
+                
+                requestMessage.textContent = 'Ваш запрос отправлен продавцам!';
+                requestMessage.className = 'message success';
+                
+                // Очищаем форму
+                document.getElementById('car-brand').value = '';
+                document.getElementById('car-model').value = '';
+                document.getElementById('car-year').value = '';
+                document.getElementById('part-name').value = '';
+                document.getElementById('part-details').value = '';
+                document.getElementById('buyer-phone').value = '';
+                document.getElementById('buyer-price').value = '';
+                
+                // Если покупатель авторизован, показываем его запросы
+                if (user) {
+                    loadBuyerRequests();
+                }
+                
+            } catch (error) {
+                requestMessage.textContent = `Ошибка: ${error.message}`;
+                requestMessage.className = 'message error';
+            }
+        }
+        
+        // Загрузка запросов для продавцов
+        async function loadSellerRequests() {
+            const list = document.getElementById('seller-requests-list');
+            list.innerHTML = '<p>Загрузка запросов...</p>';
+            
+            try {
+                const snapshot = await requestsRef
+                    .where("status", "==", "active")
+                    .orderBy("createdAt", "desc")
+                    .get();
+                
+                if (snapshot.empty) {
+                    list.innerHTML = '<p>Нет активных запросов</p>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const request = doc.data();
+                    const requestDate = request.createdAt ? 
+                        new Date(request.createdAt.toDate()).toLocaleString() : 'недавно';
+                    
+                    const requestCard = document.createElement('div');
+                    requestCard.className = 'request-card';
+                    requestCard.innerHTML = `
+                        <div class="card-title">${request.partName}</div>
+                        <div class="card-meta">
+                            <span>${requestDate}</span>
+                            <span>Телефон: ${request.buyerPhone}</span>
+                        </div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Автомобиль:</span>
+                                <span>${request.carBrand} ${request.carModel} ${request.carYear}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Описание:</span>
+                                <span>${request.details || 'Нет описания'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Желаемая цена:</span>
+                                <span>${request.desiredPrice} ₸</span>
+                            </div>
+                        </div>
+                        <div class="offer-form">
+                            <button class="btn btn-success" onclick="showOfferForm('${doc.id}')">Предложить запчасть</button>
+                        </div>
+                    `;
+                    
+                    list.appendChild(requestCard);
+                });
+            } catch (error) {
+                list.innerHTML = `<p class="message error">Ошибка загрузки: ${error.message}</p>`;
+            }
+        }
+        
+        // Форма предложения для продавца
+        window.showOfferForm = function(requestId) {
+            const shopName = document.getElementById('shop-name').value;
+            const shopPhone = document.getElementById('shop-phone').value;
+            const shopAddress = document.getElementById('shop-address').value;
+            
+            if (!shopName || !shopPhone || !shopAddress) {
+                alert("Заполните профиль магазина в разделе 'Мой магазин'!");
+                document.querySelector('[data-tab="profile"]').click();
+                return;
+            }
+            
+            const price = prompt("Введите вашу цену (тенге):");
+            if (!price || isNaN(price)) {
+                alert("Введите корректную цену!");
+                return;
+            }
+            
+            const comment = prompt("Дополнительный комментарий (необязательно):") || '';
+            
+            createOffer(requestId, price, comment);
+        };
+        
+        // Создание предложения
+        async function createOffer(requestId, price, comment) {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            try {
+                const shopName = document.getElementById('shop-name').value;
+                const shopPhone = document.getElementById('shop-phone').value;
+                const shopAddress = document.getElementById('shop-address').value;
+                
+                await offersRef.add({
+                    requestId,
+                    sellerId: user.uid,
+                    shopName,
+                    shopPhone,
+                    shopAddress,
+                    price: Number(price),
+                    comment,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                alert("Ваше предложение отправлено покупателю!");
+                
+                // Отправляем сообщение покупателю
+                const requestDoc = await requestsRef.doc(requestId).get();
+                const requestData = requestDoc.data();
+                
+                if (requestData.buyerId) {
+                    await messagesRef.add({
+                        requestId,
+                        from: 'seller',
+                        to: requestData.buyerId,
+                        text: `Магазин ${shopName} предложил вам запчасть за ${price} тенге`,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
+            }
+        }
+        
+        // Сохранение профиля магазина
+        document.getElementById('save-shop-btn').addEventListener('click', saveShopProfile);
+        
+        async function saveShopProfile() {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            const shopName = document.getElementById('shop-name').value;
+            const shopPhone = document.getElementById('shop-phone').value;
+            const shopAddress = document.getElementById('shop-address').value;
+            const shopDescription = document.getElementById('shop-description').value;
+            
+            const shopMessage = document.getElementById('shop-message');
+            shopMessage.textContent = '';
+            shopMessage.className = 'message';
+            
+            // Проверка обязательных полей
+            if (!shopName || !shopPhone || !shopAddress) {
+                shopMessage.textContent = 'Заполните обязательные поля!';
+                shopMessage.className = 'message error';
+                return;
+            }
+            
+            try {
+                await shopsRef.doc(user.uid).set({
+                    userId: user.uid,
+                    shopName,
+                    shopPhone,
+                    shopAddress,
+                    shopDescription,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                shopMessage.textContent = 'Профиль магазина сохранен!';
+                shopMessage.className = 'message success';
+                
+            } catch (error) {
+                shopMessage.textContent = `Ошибка: ${error.message}`;
+                shopMessage.className = 'message error';
+            }
+        }
+        
+        // Загрузка профиля магазина
+        async function loadShopProfile(userId) {
+            try {
+                const doc = await shopsRef.doc(userId).get();
+                if (doc.exists) {
+                    const shopData = doc.data();
+                    document.getElementById('shop-name').value = shopData.shopName;
+                    document.getElementById('shop-phone').value = shopData.shopPhone;
+                    document.getElementById('shop-address').value = shopData.shopAddress;
+                    document.getElementById('shop-description').value = shopData.shopDescription || '';
+                }
+            } catch (error) {
+                console.error("Ошибка загрузки профиля:", error);
+            }
+        }
+        
+        // Управление вкладками
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Удаляем активный класс у всех вкладок
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Добавляем активный класс текущей вкладке
+                this.classList.add('active');
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                
+                // Загружаем сообщения при переходе на вкладку
+                if (tabId === 'messages') {
+                    loadSellerMessages();
+                }
+            });
+        });
+        
+        // Загрузка сообщений для продавца
+        async function loadSellerMessages() {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            const list = document.getElementById('seller-messages-list');
+            list.innerHTML = '<p>Загрузка сообщений...</p>';
+            
+            try {
+                const snapshot = await messagesRef
+                    .where("to", "==", user.uid)
+                    .orderBy("createdAt", "desc")
+                    .get();
+                
+                if (snapshot.empty) {
+                    list.innerHTML = '<p>Нет сообщений</p>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const message = doc.data();
+                    const messageDate = message.createdAt ? 
+                        new Date(message.createdAt.toDate()).toLocaleString() : 'недавно';
+                    
+                    const messageCard = document.createElement('div');
+                    messageCard.className = 'offer-card';
+                    messageCard.innerHTML = `
+                        <div class="seller-info">${messageDate}</div>
+                        <div>${message.text}</div>
+                        <button class="btn" onclick="viewRequest('${message.requestId}')">Посмотреть запрос</button>
+                    `;
+                    
+                    list.appendChild(messageCard);
+                });
+            } catch (error) {
+                list.innerHTML = `<p class="message error">Ошибка загрузки: ${error.message}</p>`;
+            }
+        }
+        
+        // Просмотр запроса по ID
+        window.viewRequest = function(requestId) {
+            alert(`Просмотр запроса: ${requestId}`);
+            // Здесь можно реализовать переход на страницу запроса
+        };
+        
+        // Авторизация
+        document.getElementById('do-login-btn').addEventListener('click', login);
+        document.getElementById('do-register-btn').addEventListener('click', register);
+        
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const loginMessage = document.getElementById('login-message');
+            loginMessage.textContent = '';
+            loginMessage.className = 'message';
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                loginPopup.classList.add('hidden');
+            } catch (error) {
+                loginMessage.textContent = `Ошибка входа: ${error.message}`;
+                loginMessage.className = 'message error';
+            }
+        }
+        
+        async function register() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const loginMessage = document.getElementById('login-message');
+            loginMessage.textContent = '';
+            loginMessage.className = 'message';
+            
+            try {
+                await auth.createUserWithEmailAndPassword(email, password);
+                loginMessage.textContent = 'Регистрация успешна! Заполните профиль магазина.';
+                loginMessage.className = 'message success';
+                
+                // Закрываем попап через 2 секунды
+                setTimeout(() => {
+                    loginPopup.classList.add('hidden');
+                    document.querySelector('[data-tab="profile"]').click();
+                }, 2000);
+            } catch (error) {
+                loginMessage.textContent = `Ошибка регистрации: ${error.message}`;
+                loginMessage.className = 'message error';
+            }
+        }
+    </script>
+</body>
+</html>
