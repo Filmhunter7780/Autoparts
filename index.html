@@ -153,7 +153,7 @@
             border-radius: 8px;
             margin-bottom: 1rem;
             border-left: 4px solid var(--secondary);
-            overflow: hidden; /* Предотвращаем выход за границы */
+            overflow: hidden;
         }
         
         .card-title {
@@ -161,7 +161,7 @@
             font-weight: bold;
             margin-bottom: 0.5rem;
             color: var(--primary);
-            word-wrap: break-word; /* Перенос длинных слов */
+            word-wrap: break-word;
         }
         
         .card-meta {
@@ -170,35 +170,35 @@
             color: var(--gray);
             font-size: 0.9rem;
             margin-bottom: 1rem;
-            flex-wrap: wrap; /* Разрешаем перенос на мобильных */
+            flex-wrap: wrap;
         }
         
         .card-meta > span {
-            margin-bottom: 5px; /* Отступ между элементами при переносе */
+            margin-bottom: 5px;
         }
         
         .card-details {
             margin-bottom: 1rem;
-            word-wrap: break-word; /* Перенос длинных слов */
+            word-wrap: break-word;
         }
         
         .detail-item {
             margin-bottom: 0.5rem;
             display: flex;
-            flex-wrap: wrap; /* Разрешаем перенос */
+            flex-wrap: wrap;
         }
         
         .detail-label {
             font-weight: 500;
             min-width: 120px;
-            max-width: 30%; /* Ограничиваем ширину метки */
-            word-break: break-word; /* Перенос длинных слов в метке */
+            max-width: 30%;
+            word-break: break-word;
         }
         
         .detail-item > span:not(.detail-label) {
             flex: 1;
-            min-width: 200px; /* Минимальная ширина для содержимого */
-            word-break: break-word; /* Перенос длинных слов */
+            min-width: 200px;
+            word-break: break-word;
         }
         
         .offers-list {
@@ -213,13 +213,13 @@
             border-radius: 4px;
             margin-bottom: 1rem;
             border: 1px solid #eee;
-            word-wrap: break-word; /* Перенос длинных слов */
+            word-wrap: break-word;
         }
         
         .seller-info {
             font-weight: bold;
             margin-bottom: 0.5rem;
-            word-wrap: break-word; /* Перенос длинных слов */
+            word-wrap: break-word;
         }
         
         .offer-price {
@@ -234,7 +234,7 @@
             margin: 1rem 0;
             border-radius: 4px;
             text-align: center;
-            word-wrap: break-word; /* Перенос длинных слов */
+            word-wrap: break-word;
         }
         
         .error {
@@ -298,6 +298,14 @@
             margin-bottom: 0.5rem;
         }
         
+        .seller-only-message {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+        
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -336,7 +344,6 @@
     </style>
 </head>
 <body>
-    <!-- Остальная HTML структура без изменений -->
     <header>
         <div class="logo">AutoParts Market</div>
         <div class="auth-buttons">
@@ -401,11 +408,21 @@
             </div>
         </div>
         
-        <!-- Список активных запросов -->
-        <div class="section">
+        <!-- Список активных запросов (виден только продавцам) -->
+        <div id="requests-section" class="section hidden">
             <h2 class="section-title">Активные запросы покупателей</h2>
             <div id="public-requests-list">
                 <p>Загрузка запросов...</p>
+            </div>
+        </div>
+        
+        <!-- Сообщение для неавторизованных пользователей -->
+        <div id="seller-only-message" class="seller-only-message">
+            <h2>Доступ только для продавцов</h2>
+            <p>Для просмотра запросов покупателей необходимо войти в систему как продавец.</p>
+            <div class="auth-buttons" style="justify-content: center; margin-top: 1rem;">
+                <button id="login-btn2" class="btn btn-outline">Вход для продавцов</button>
+                <button id="register-btn2" class="btn">Регистрация продавца</button>
             </div>
         </div>
         
@@ -468,6 +485,10 @@
         const sellerContent = document.getElementById('seller-content');
         const buyerRequestSection = document.getElementById('buyer-request-section');
         const createRequestBtn = document.getElementById('create-request-btn');
+        const requestsSection = document.getElementById('requests-section');
+        const sellerOnlyMessage = document.getElementById('seller-only-message');
+        const loginBtn2 = document.getElementById('login-btn2');
+        const registerBtn2 = document.getElementById('register-btn2');
         
         // Текущий режим попапа
         let popupMode = 'register';
@@ -487,6 +508,10 @@
                 logoutBtn.classList.remove('hidden');
                 sellerContent.classList.remove('hidden');
                 buyerRequestSection.classList.add('hidden');
+                sellerOnlyMessage.classList.add('hidden');
+                
+                // Проверяем, является ли пользователь продавцом
+                checkSellerRole(user);
                 
                 // Проверяем, заполнил ли продавец данные магазина
                 checkSellerProfile(user);
@@ -498,11 +523,50 @@
                 logoutBtn.classList.add('hidden');
                 sellerContent.classList.add('hidden');
                 buyerRequestSection.classList.remove('hidden');
+                requestsSection.classList.add('hidden');
+                sellerOnlyMessage.classList.remove('hidden');
             }
-            
-            // Загружаем запросы
-            loadPublicRequests();
         });
+        
+        // Проверить роль пользователя (продавец или нет)
+        async function checkSellerRole(user) {
+            try {
+                const userDoc = await usersRef.doc(user.uid).get();
+                if (userDoc.exists && userDoc.data().role === 'seller') {
+                    // Пользователь является продавцом
+                    requestsSection.classList.remove('hidden');
+                    sellerOnlyMessage.classList.add('hidden');
+                    // Загружаем запросы
+                    loadPublicRequests();
+                } else {
+                    // Пользователь не продавец
+                    requestsSection.classList.add('hidden');
+                    sellerOnlyMessage.classList.remove('hidden');
+                    sellerOnlyMessage.innerHTML = `
+                        <h2>Доступ только для продавцов</h2>
+                        <p>Вы авторизованы, но не являетесь продавцом.</p>
+                        <p>Для доступа к запросам покупателей зарегистрируйтесь как продавец.</p>
+                        <div class="auth-buttons" style="justify-content: center; margin-top: 1rem;">
+                            <button id="register-as-seller" class="btn">Зарегистрироваться как продавец</button>
+                        </div>
+                    `;
+                    document.getElementById('register-as-seller').addEventListener('click', () => {
+                        popupMode = 'register';
+                        showPopup();
+                    });
+                }
+            } catch (error) {
+                console.error("Ошибка при проверке роли пользователя:", error);
+                requestsSection.classList.add('hidden');
+                sellerOnlyMessage.classList.remove('hidden');
+                sellerOnlyMessage.innerHTML = `
+                    <div class="message error">
+                        <p>Ошибка при проверке прав доступа</p>
+                        <p>Пожалуйста, попробуйте перезагрузить страницу</p>
+                    </div>
+                `;
+            }
+        }
         
         // Проверить профиль продавца
         async function checkSellerProfile(user) {
@@ -543,6 +607,16 @@
         });
         
         registerBtn.addEventListener('click', () => {
+            popupMode = 'register';
+            showPopup();
+        });
+        
+        loginBtn2.addEventListener('click', () => {
+            popupMode = 'login';
+            showPopup();
+        });
+        
+        registerBtn2.addEventListener('click', () => {
             popupMode = 'register';
             showPopup();
         });
@@ -846,9 +920,6 @@
                 document.getElementById('buyer-phone').value = '';
                 document.getElementById('buyer-price').value = '';
                 
-                // Обновляем список запросов
-                loadPublicRequests();
-                
             } catch (error) {
                 let errorMessage = error.message;
                 
@@ -928,15 +999,12 @@
                     });
                 }
                 
-                // Проверим, является ли текущий пользователь продавцом
-                let isSeller = false;
+                // Проверим, является ли текущий пользователь продавцом и имеет ли профиль магазина
                 let hasShopProfile = false;
-                if (auth.currentUser) {
-                    const userDoc = await usersRef.doc(auth.currentUser.uid).get();
-                    isSeller = userDoc.exists && userDoc.data().role === 'seller';
-                    
+                const user = auth.currentUser;
+                if (user) {
                     // Проверяем наличие профиля магазина
-                    const shopQuery = await shopsRef.where("userId", "==", auth.currentUser.uid).get();
+                    const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
                     hasShopProfile = !shopQuery.empty;
                 }
                 
@@ -1008,7 +1076,7 @@
                     }
                     
                     // Форма для ответа продавца
-                    if (isSeller && hasShopProfile) {
+                    if (hasShopProfile) {
                         const offerForm = document.createElement('div');
                         offerForm.className = 'offer-form';
                         offerForm.innerHTML = `
@@ -1028,7 +1096,7 @@
                 });
                 
                 // Проверяем ограничения на предложения для продавцов
-                if (isSeller && hasShopProfile) {
+                if (hasShopProfile) {
                     await checkOfferLimitations();
                 }
                 
