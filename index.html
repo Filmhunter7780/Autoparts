@@ -90,6 +90,15 @@
             border: 1px solid white;
         }
         
+        .btn-disabled {
+            background-color: var(--gray);
+            cursor: not-allowed;
+        }
+        
+        .btn-disabled:hover {
+            transform: none;
+        }
+        
         .container {
             max-width: 1200px;
             margin: 2rem auto;
@@ -559,8 +568,8 @@
                 <h2 class="section-title">Данные вашего магазина</h2>
                 
                 <div class="form-group">
-                    <label for="shop-name">Название магазина *</label>
-                    <input type="text" id="shop-name" placeholder="Например: ИП Автозапчасти" required>
+                    <label>Название магазина</label>
+                    <p id="shop-name-display" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;"></p>
                 </div>
                 <div class="form-group">
                     <label for="shop-phone">Телефон магазина *</label>
@@ -577,6 +586,19 @@
                     <button id="close-popup-btn" class="btn">Закрыть</button>
                 </div>
             `;
+            
+            // Загружаем текущие данные магазина
+            const user = auth.currentUser;
+            if (user) {
+                shopsRef.where("userId", "==", user.uid).get().then(shopQuery => {
+                    if (!shopQuery.empty) {
+                        const shopData = shopQuery.docs[0].data();
+                        document.getElementById('shop-name-display').textContent = shopData.shopName || 'Не указано';
+                        document.getElementById('shop-phone').value = shopData.shopPhone || '';
+                        document.getElementById('shop-address').value = shopData.shopAddress || '';
+                    }
+                });
+            }
             
             // Обновляем обработчики событий
             document.getElementById('do-action-btn').addEventListener('click', saveShopProfile);
@@ -672,9 +694,8 @@
             }
         }
         
-        // Сохранение профиля магазина
+        // Сохранение профиля магазина (только телефон и адрес)
         async function saveShopProfile() {
-            const shopName = document.getElementById('shop-name').value;
             const shopPhone = document.getElementById('shop-phone').value;
             const shopAddress = document.getElementById('shop-address').value;
             const user = auth.currentUser;
@@ -684,7 +705,7 @@
             popupMsg.className = 'message';
             
             // Проверка заполненности полей
-            if (!shopName || !shopPhone || !shopAddress) {
+            if (!shopPhone || !shopAddress) {
                 popupMsg.textContent = 'Заполните все поля!';
                 popupMsg.className = 'message error';
                 return;
@@ -698,28 +719,19 @@
                 const shopQuery = await shopsRef.where("userId", "==", user.uid).get();
                 
                 if (shopQuery.empty) {
-                    // Создаем новый профиль
-                    await shopsRef.add({
-                        userId: user.uid,
-                        shopName,
-                        shopPhone,
-                        shopAddress,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    popupMsg.textContent = 'Данные магазина сохранены!';
+                    popupMsg.textContent = 'Профиль магазина не найден!';
+                    popupMsg.className = 'message error';
                 } else {
-                    // Обновляем первый найденный профиль
+                    // Обновляем только телефон и адрес
                     const shopDoc = shopQuery.docs[0];
                     await shopDoc.ref.update({
-                        shopName,
                         shopPhone,
                         shopAddress,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     popupMsg.textContent = 'Данные магазина обновлены!';
+                    popupMsg.className = 'message success';
                 }
-                
-                popupMsg.className = 'message success';
                 
                 // Закрываем попап через 2 секунды
                 setTimeout(() => {
@@ -942,7 +954,8 @@
                         offerForm.className = 'offer-form';
                         offerForm.innerHTML = `
                             <div style="margin-top: 1rem;">
-                                <button class="btn btn-success" 
+                                <button class="btn btn-success offer-btn" 
+                                        data-request-id="${doc.id}"
                                         onclick="showOfferForm('${doc.id}')">
                                     Предложить запчасть
                                 </button>
@@ -955,6 +968,11 @@
                     list.appendChild(requestCard);
                 });
                 
+                // Проверяем ограничения на предложения для продавцов
+                if (isSeller && hasShopProfile) {
+                    await checkOfferLimitations();
+                }
+                
             } catch (error) {
                 list.innerHTML = `
                     <div class="message error">
@@ -965,12 +983,68 @@
             }
         }
         
+        // Проверить ограничения на предложения
+        async function checkOfferLimitations() {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            // Получаем все предложения текущего продавца
+            const offersQuery = await offersRef
+                .where("sellerId", "==", user.uid)
+                .orderBy("createdAt", "desc")
+                .get();
+            
+            // Группируем по requestId с последним временем
+            const lastOfferTimes = {};
+            offersQuery.forEach(doc => {
+                const offer = doc.data();
+                if (!lastOfferTimes[offer.requestId] || 
+                    lastOfferTimes[offer.requestId] < offer.createdAt) {
+                    lastOfferTimes[offer.requestId] = offer.createdAt;
+                }
+            });
+            
+            // Проверяем каждую кнопку предложения
+            document.querySelectorAll('.offer-btn').forEach(btn => {
+                const requestId = btn.getAttribute('data-request-id');
+                const lastOfferTime = lastOfferTimes[requestId];
+                
+                if (lastOfferTime) {
+                    const now = new Date();
+                    const offerTime = lastOfferTime.toDate();
+                    const diffMinutes = (now - offerTime) / (1000 * 60);
+                    
+                    if (diffMinutes < 15) {
+                        // Заблокировать кнопку
+                        btn.disabled = true;
+                        btn.classList.add('btn-disabled');
+                        btn.textContent = `Повторно через ${Math.ceil(15 - diffMinutes)} мин`;
+                    }
+                }
+            });
+        }
+        
         // Форма предложения для продавца
         window.showOfferForm = async function(requestId) {
             const user = auth.currentUser;
             if (!user) {
                 alert('Для размещения предложения войдите в систему!');
                 showPopup();
+                return;
+            }
+            
+            // Проверяем, не отправлял ли продавец предложение за последние 15 минут
+            const fifteenMinutesAgo = new Date();
+            fifteenMinutesAgo.setMinutes(fifteenMinutesAgo.getMinutes() - 15);
+            
+            const recentOfferQuery = await offersRef
+                .where("requestId", "==", requestId)
+                .where("sellerId", "==", user.uid)
+                .where("createdAt", ">", fifteenMinutesAgo)
+                .get();
+            
+            if (!recentOfferQuery.empty) {
+                alert("Вы уже отправляли предложение по этому запросу менее 15 минут назад. Пожалуйста, подождите.");
                 return;
             }
             
