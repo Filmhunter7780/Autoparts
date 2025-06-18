@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <style>
+        /* Все стили остаются без изменений */
         :root {
             --primary: #2c3e50;
             --secondary: #3498db;
@@ -1033,7 +1034,7 @@
                         const offer = doc.data();
                         // Исправление: правильно сохраняем время последнего предложения
                         if (!lastOfferTimes[offer.requestId] || 
-                            lastOfferTimes[offer.requestId].seconds < offer.createdAt.seconds) {
+                            (lastOfferTimes[offer.requestId].seconds < offer.createdAt.seconds)) {
                             lastOfferTimes[offer.requestId] = offer.createdAt;
                         }
                     });
@@ -1077,19 +1078,32 @@
             fifteenMinutesAgo.setMinutes(fifteenMinutesAgo.getMinutes() - 15);
             
             try {
-                // Исправление: правильное преобразование даты для Firestore
-                const timestamp = firebase.firestore.Timestamp.fromDate(fifteenMinutesAgo);
-                
-                const recentOfferQuery = await offersRef
+                // Упрощенная проверка без сложного запроса
+                const allOffersQuery = await offersRef
                     .where("requestId", "==", requestId)
                     .where("sellerId", "==", user.uid)
-                    .where("createdAt", ">", timestamp)
                     .get();
                 
-                if (!recentOfferQuery.empty) {
+                let hasRecentOffer = false;
+                const now = new Date();
+                
+                if (!allOffersQuery.empty) {
+                    allOffersQuery.forEach(doc => {
+                        const offer = doc.data();
+                        const offerTime = offer.createdAt.toDate();
+                        const diffMinutes = (now - offerTime) / (1000 * 60);
+                        
+                        if (diffMinutes < 15) {
+                            hasRecentOffer = true;
+                        }
+                    });
+                }
+                
+                if (hasRecentOffer) {
                     alert("Вы уже отправляли предложение по этому запросу менее 15 минут назад. Пожалуйста, подождите.");
                     return;
                 }
+                
             } catch (error) {
                 console.error("Ошибка проверки предложения:", error);
                 alert("Произошла ошибка при проверке. Попробуйте позже.");
