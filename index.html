@@ -348,6 +348,61 @@
             font-weight: bold;
         }
         
+        .photo-preview {
+            max-width: 100%;
+            max-height: 200px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .photo-upload-container {
+            margin: 1rem 0;
+            padding: 1rem;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        
+        .photo-upload-container p {
+            margin-bottom: 10px;
+            color: #666;
+        }
+        
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .upload-btn {
+            border: 1px solid #3498db;
+            color: #3498db;
+            background-color: white;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-btn:hover {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -432,6 +487,17 @@
             <div class="form-group">
                 <label for="part-details">Дополнительные детали</label>
                 <textarea id="part-details" placeholder="Опишите что вам нужно, VIN код или особенности" maxlength="500"></textarea>
+            </div>
+            
+            <!-- Контейнер для загрузки фото -->
+            <div class="photo-upload-container">
+                <p>Прикрепите фото запчасти (необязательно)</p>
+                <div class="upload-btn-wrapper">
+                    <button class="upload-btn">Выбрать фото</button>
+                    <input type="file" id="part-photo" accept="image/*">
+                </div>
+                <img id="photo-preview" class="photo-preview" alt="Предпросмотр фото">
+                <div id="photo-info" style="margin-top: 10px; font-size: 0.9rem; color: var(--gray);"></div>
             </div>
             
             <div class="form-grid">
@@ -575,6 +641,9 @@
         const carYearInput = document.getElementById('car-year');
         const brandResults = document.getElementById('brand-results');
         const modelResults = document.getElementById('model-results');
+        const partPhotoInput = document.getElementById('part-photo');
+        const photoPreview = document.getElementById('photo-preview');
+        const photoInfo = document.getElementById('photo-info');
         
         // Локальный кеш марок и моделей
         let carBrands = [];
@@ -633,6 +702,39 @@
                         }
                     }
                 }, 200);
+            });
+            
+            // Обработчик загрузки фото
+            partPhotoInput.addEventListener('change', function(e) {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    
+                    // Проверка типа файла
+                    if (!file.type.match('image.*')) {
+                        photoInfo.textContent = 'Пожалуйста, выберите изображение (JPG, PNG, GIF)';
+                        photoInfo.style.color = 'var(--danger)';
+                        return;
+                    }
+                    
+                    // Проверка размера файла
+                    if (file.size > 500 * 1024) { // Ограничение 500KB
+                        photoInfo.textContent = 'Файл слишком большой (максимум 500KB)';
+                        photoInfo.style.color = 'var(--danger)';
+                        return;
+                    }
+                    
+                    // Отображение информации о файле
+                    photoInfo.textContent = `Файл: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+                    photoInfo.style.color = 'var(--success)';
+                    
+                    // Отображение предпросмотра
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        photoPreview.src = e.target.result;
+                        photoPreview.style.display = 'block';
+                    }
+                    reader.readAsDataURL(file);
+                }
             });
         });
 
@@ -1076,6 +1178,7 @@
             const carModel = document.getElementById('car-model').value;
             const partName = document.getElementById('part-name').value;
             let buyerPhone = document.getElementById('buyer-phone').value;
+            const photoFile = document.getElementById('part-photo').files[0];
             
             const requestMessage = document.getElementById('request-message');
             requestMessage.textContent = '';
@@ -1100,6 +1203,19 @@
             }
             
             try {
+                // Проверка размера фото
+                if (photoFile && photoFile.size > 500 * 1024) {
+                    requestMessage.textContent = 'Фото слишком большое (максимум 500KB)';
+                    requestMessage.className = 'message error';
+                    return;
+                }
+                
+                // Чтение фото как Data URL
+                let photoData = '';
+                if (photoFile) {
+                    photoData = await readFileAsDataURL(photoFile);
+                }
+                
                 // Получаем числовое значение цены
                 const priceValue = document.getElementById('buyer-price').value;
                 const desiredPrice = priceValue ? parseInt(priceValue) : 0;
@@ -1112,6 +1228,7 @@
                     details: document.getElementById('part-details').value || '',
                     buyerPhone,
                     desiredPrice,
+                    photoData, // Добавляем Data URL
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     status: "active"
                 };
@@ -1131,6 +1248,9 @@
                 document.getElementById('part-details').value = '';
                 document.getElementById('buyer-phone').value = '';
                 document.getElementById('buyer-price').value = '';
+                document.getElementById('part-photo').value = '';
+                photoPreview.style.display = 'none';
+                photoInfo.textContent = '';
                 
                 // Отправляем уведомление продавцам
                 notifySellers();
@@ -1146,6 +1266,16 @@
                 requestMessage.textContent = `Ошибка: ${errorMessage}`;
                 requestMessage.className = 'message error';
             }
+        }
+        
+        // Функция для чтения файла как Data URL
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         }
         
         // Загрузка запросов покупателя
@@ -1241,8 +1371,22 @@
                                 <span class="detail-label">Желаемая цена:</span>
                                 <span>${request.desiredPrice ? request.desiredPrice + ' ₸' : 'не указана'}</span>
                             </div>
-                        </div>
                     `;
+                    
+                    // Добавляем фото, если оно есть
+                    if (request.photoData) {
+                        requestCard.innerHTML += `
+                            <div class="detail-item">
+                                <span class="detail-label">Фото:</span>
+                                <img src="${request.photoData}" 
+                                     class="photo-preview" 
+                                     alt="Фото запчасти"
+                                     style="display: block;">
+                            </div>
+                        `;
+                    }
+                    
+                    requestCard.innerHTML += `</div>`;
                     
                     // Добавляем предложения
                     const offersList = document.createElement('div');
@@ -1407,8 +1551,22 @@
                                 <span class="detail-label">Желаемая цена:</span>
                                 <span>${request.desiredPrice ? request.desiredPrice + ' ₸' : 'не указана'}</span>
                             </div>
-                        </div>
                     `;
+                    
+                    // Добавляем фото, если оно есть
+                    if (request.photoData) {
+                        requestCard.innerHTML += `
+                            <div class="detail-item">
+                                <span class="detail-label">Фото:</span>
+                                <img src="${request.photoData}" 
+                                     class="photo-preview" 
+                                     alt="Фото запчасти"
+                                     style="display: block;">
+                            </div>
+                        `;
+                    }
+                    
+                    requestCard.innerHTML += `</div>`;
                     
                     // Добавляем предложения
                     const offersList = document.createElement('div');
